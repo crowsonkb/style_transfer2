@@ -1,0 +1,8 @@
+body {
+    background-color: rgb(55, 55, 55);
+    color: rgb(255, 255, 255);
+}
+
+#content {
+    margin: 16px;
+}
