@@ -254,8 +254,8 @@ def main():
     cp.read(str(MODULE_DIR / 'config.ini'))
     config = cp['DEFAULT']
 
-    if 'caffe_python_module' in config:
-        sys.path.append(config['caffe_python_module'])
+    if 'caffe_path' in config:
+        sys.path.append(config['caffe_path'] + '/python')
 
     logging.basicConfig(level=logging.DEBUG, format=utils.logging_format)
     logging.captureWarnings(True)
