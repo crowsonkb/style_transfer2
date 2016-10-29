@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
-"""The worker module for the under-development web app."""
+"""The worker module for Style Transfer."""
+
 
 import configparser
 import logging
@@ -28,7 +29,7 @@ class CaffeModel:
     weights_path = models_path / 'vgg19.caffemodel'
     mean = np.float32((123.68, 116.779, 103.939)).reshape((3, 1, 1))
 
-    def __init__(self, gpu):
+    def __init__(self, gpu=-1):
         # Set environment variables before the first import of caffe, then import it
         logger.debug('Initializing Caffe.')
         os.environ['GLOG_minloglevel'] = '1'
@@ -85,7 +86,11 @@ class CaffeModel:
 
 
 class AdamOptimizer:
-    def __init__(self, x, step_size=1, b1=0.9, b2=0.999):
+    """An optimizer using the Adam algorithm for stochastic approximation. Given the parameters
+    array x, it takes scaled gradient descent steps when supplied with x's gradient. The step_size
+    value controls the maximum amount a parameter may change per step. b1 and b2 are Adam momentum
+    parameters which should not need to be changed from the default."""
+    def __init__(self, x, step_size=SetStepSize.default, b1=0.9, b2=0.999):
         self.x = x
         self.step_size = step_size
         self.b1 = b1
@@ -95,14 +100,24 @@ class AdamOptimizer:
         self.g2 = np.zeros_like(x)
 
     def step(self, grad):
+        """Takes a scaled gradient descent step given x's gradient. Updates x in place, and returns
+        the new value of x."""
         self.t += 1
 
-        self.g1 = self.b1*self.g1 + (1-self.b1)*grad
-        self.g2 = self.b2*self.g2 + (1-self.b2)*grad**2
-        ss = self.step_size * np.sqrt(1-self.b2**self.t) / np.sqrt(1-self.b1**self.t)
+        self.g1[:] = self.b1*self.g1 + (1-self.b1)*grad
+        self.g2[:] = self.b2*self.g2 + (1-self.b2)*grad**2
+        ss = self.step_size * np.sqrt(1-self.b2**self.t) / (1-self.b1**self.t)
 
         self.x -= ss * self.g1 / (np.sqrt(self.g2) + 1e-8)
         return self.x
+
+
+def gram_matrix(x):
+    """Computes the Gram matrix of a feature map."""
+    n, c, h, w = x.shape
+    assert n == 1
+    x = x.reshape((c, h * w))
+    return np.dot(x, x.T) / np.float32(x.size)
 
 
 class StyleTransfer:
@@ -132,9 +147,7 @@ class StyleTransfer:
         features = self.model.forward(image)
         self.grams = {}
         for layer, feat in features.items():
-            _, n, mh, mw = feat.shape
-            feat = feat.reshape((n, mh * mw))
-            self.grams[layer] = np.dot(feat, feat.T) / np.float32(feat.size)
+            self.grams[layer] = gram_matrix(feat)
 
     def set_step_size(self, step_size):
         self.optimizer.step_size = step_size

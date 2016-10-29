@@ -11,7 +11,7 @@ class SetImage:
 
 class SetStepSize:
     """A request from the app to the worker to set the optimizer's step size (learning rate)."""
-    default = 1
+    default = 10
 
     def __init__(self, step_size):
         self.step_size = step_size

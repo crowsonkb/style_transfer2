@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
-"""An under-development web application."""
+"""The main module for a web application implementing neural style transfer using Caffe. See
+"A Neural Algorithm of Artistic Style" (http://arxiv.org/abs/1508.06576)."""
 
 # pylint: disable=redefined-outer-name
 
@@ -23,6 +24,7 @@ import utils
 
 MODULE_DIR = Path(__file__).parent.resolve()
 STATIC_PATH = MODULE_DIR / 'static'
+TEMPLATES_PATH = MODULE_DIR / 'templates'
 WORKER_PATH = MODULE_DIR / 'worker.py'
 
 logger = logging.getLogger(__name__)
@@ -41,7 +43,8 @@ async def root(request):
 async def output_image(request):
     buf = io.BytesIO()
     utils.as_pil(request.app.output_arr).save(buf, format='png')
-    return web.Response(content_type='image/png', body=buf.getvalue())
+    headers = {'Cache-Control': 'no-cache'}
+    return web.Response(content_type='image/png', body=buf.getvalue(), headers=headers)
 
 
 async def worker_test(app):
@@ -80,7 +83,7 @@ def init():
     cp.read(str(MODULE_DIR / 'config.ini'))
     app.config = cp['DEFAULT']
 
-    aiohttp_jinja2.setup(app, loader=jinja2.FileSystemLoader(str(MODULE_DIR / 'templates')))
+    aiohttp_jinja2.setup(app, loader=jinja2.FileSystemLoader(str(TEMPLATES_PATH)))
     app.router.add_route('GET', '/', root)
     app.router.add_route('GET', '/output.png', output_image)
     app.router.add_static('/', STATIC_PATH)
