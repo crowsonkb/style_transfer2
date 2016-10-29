@@ -6,6 +6,7 @@
 
 import asyncio
 import configparser
+import io
 import logging
 from pathlib import Path
 import subprocess
@@ -14,9 +15,10 @@ from aiohttp import web
 import aiohttp_jinja2
 import jinja2
 import numpy as np
+from PIL import Image
 import zmq, zmq.asyncio
 
-import messages
+from messages import *
 import utils
 
 MODULE_DIR = Path(__file__).parent.resolve()
@@ -32,22 +34,31 @@ asyncio.set_event_loop(loop)
 
 @aiohttp_jinja2.template('index.html')
 async def root(request):
-    return {}
+    h, w, _ = request.app.output_arr.shape
+    return dict(width=w, height=h)
+
+
+async def output_image(request):
+    buf = io.BytesIO()
+    utils.as_pil(request.app.output_arr).save(buf, format='png')
+    return web.Response(content_type='image/png', body=buf.getvalue())
 
 
 async def worker_test(app):
-    msg = messages.SetImage('input', np.random.uniform(0, 255, (128, 128, 3)).astype(np.float32))
+    msg = SetImage('input', np.random.uniform(0, 255, (96, 96, 3)).astype(np.float32))
     app.sock_out.send_pyobj(msg)
-    msg = messages.SetImage('content', np.random.uniform(0, 255, (128, 128, 3)).astype(np.float32))
+    msg = SetImage('content', np.float32(Image.open('../style_transfer/golden_gate.jpg').resize((96, 96), Image.LANCZOS)))
     app.sock_out.send_pyobj(msg)
-    msg = messages.SetImage('style', np.random.uniform(0, 255, (128, 128, 3)).astype(np.float32))
+    msg = SetImage('style', np.float32(Image.open('../style_transfer/seated-nude.jpg').resize((96, 96), Image.LANCZOS)))
     app.sock_out.send_pyobj(msg)
-    app.sock_out.send_pyobj(messages.StartIteration())
+    app.sock_out.send_pyobj(SetStepSize(10))
+    app.sock_out.send_pyobj(SetWeights(dict(content=dict(conv4_2=1), style={'pool1':1e-3, 'pool2':1e-4, 'pool3':1e-5, 'pool4':1e-6}), {'tv': 5}))
+    app.sock_out.send_pyobj(StartIteration())
 
     while True:
         msg = await app.sock_in.recv_pyobj()
-        logger.info('iterate %d, received, loss: %g', msg.i, msg.loss)
-        utils.as_pil(msg.image).save('debug.png')
+        logger.info('iterate %d received, loss: %g', msg.i, msg.loss)
+        app.output_arr = msg.image
 
 
 async def startup_tasks(app):
@@ -71,6 +82,7 @@ def init():
 
     aiohttp_jinja2.setup(app, loader=jinja2.FileSystemLoader(str(MODULE_DIR / 'templates')))
     app.router.add_route('GET', '/', root)
+    app.router.add_route('GET', '/output.png', output_image)
     app.router.add_static('/', STATIC_PATH)
 
     app.on_startup.append(startup_tasks)

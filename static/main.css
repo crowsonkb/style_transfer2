@@ -6,3 +6,7 @@ body {
 #content {
     margin: 16px;
 }
+
+#output-image {
+    image-rendering: -webkit-optimize-contrast;
+}

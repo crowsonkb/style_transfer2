@@ -44,20 +44,44 @@ def resize(arr, size, order=3):
     return resized_arr
 
 
+def roll_by_1(arr, shift, axis):
+    """Rolls a 4D array in-place by a shift of one element. Axes 2 and 3 only."""
+    if axis == 2:
+        if shift == -1:
+            line = arr[:, :, 0, :].copy()
+            arr[:, :, :-1, :] = arr[:, :, 1:, :]
+            arr[:, :, -1, :] = line
+        elif shift == 1:
+            line = arr[:, :, -1, :].copy()
+            arr[:, :, 1:, :] = arr[:, :, :-1, :]
+            arr[:, :, 0, :] = line
+    elif axis == 3:
+        if shift == -1:
+            line = arr[:, :, :, 0].copy()
+            arr[:, :, :, :-1] = arr[:, :, :, 1:]
+            arr[:, :, :, -1] = line
+        elif shift == 1:
+            line = arr[:, :, :, -1].copy()
+            arr[:, :, :, 1:] = arr[:, :, :, :-1]
+            arr[:, :, :, 0] = line
+    else:
+        raise ValueError('Unsupported shift or axis')
+    return arr
+
+
 def tv_norm(x, beta=2):
     """Computes the total variation norm and its gradient. From jcjohnson/cnn-vis and [3]."""
-    x_diff, y_diff = np.zeros_like(x), np.zeros_like(x)
-    x_diff[..., :, :-1] -= np.diff(x, axis=-1)
-    y_diff[..., :-1, :] -= np.diff(x, axis=-2)
+    x_diff = x - roll_by_1(x.copy(), -1, axis=3)
+    y_diff = x - roll_by_1(x.copy(), -1, axis=2)
     grad_norm2 = x_diff**2 + y_diff**2 + 1e-8
-    norm = np.sum(grad_norm2**(beta/2))
+    loss = np.sum(grad_norm2**(beta/2))
     dgrad_norm = (beta/2) * grad_norm2**(beta/2 - 1)
     dx_diff = 2 * x_diff * dgrad_norm
     dy_diff = 2 * y_diff * dgrad_norm
     grad = dx_diff + dy_diff
-    grad[..., :, 1:] -= x_diff[..., :, :-1]
-    grad[..., 1:, :] -= y_diff[..., :-1, :]
-    return norm, grad
+    grad -= roll_by_1(dx_diff, 1, axis=3)
+    grad -= roll_by_1(dy_diff, 1, axis=2)
+    return loss, grad
 
 
 def as_pil(arr):

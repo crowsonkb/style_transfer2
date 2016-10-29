@@ -12,7 +12,7 @@ import numpy as np
 import pandas as pd
 import zmq
 
-import messages
+from messages import *
 import utils
 
 MODULE_DIR = Path(__file__).parent.resolve()
@@ -84,6 +84,27 @@ class CaffeModel:
         return self.net.blobs['data'].diff
 
 
+class AdamOptimizer:
+    def __init__(self, x, step_size=1, b1=0.9, b2=0.999):
+        self.x = x
+        self.step_size = step_size
+        self.b1 = b1
+        self.b2 = b2
+        self.t = 0
+        self.g1 = np.zeros_like(x)
+        self.g2 = np.zeros_like(x)
+
+    def step(self, grad):
+        self.t += 1
+
+        self.g1 = self.b1*self.g1 + (1-self.b1)*grad
+        self.g2 = self.b2*self.g2 + (1-self.b2)*grad**2
+        ss = self.step_size * np.sqrt(1-self.b2**self.t) / np.sqrt(1-self.b1**self.t)
+
+        self.x -= ss * self.g1 / (np.sqrt(self.g2) + 1e-8)
+        return self.x
+
+
 class StyleTransfer:
     def __init__(self, model):
         self.model = model
@@ -92,19 +113,19 @@ class StyleTransfer:
         self.input = None
         self.features = None
         self.grams = None
-        self.step_size = 1
-        # TODO: receive actual weights from the app
-        loss_types = ('content', 'style', 'tv')
-        layers = self.model.layers()
-        arr = np.ones((len(layers), len(loss_types)), np.float32)
-        self.weights = pd.DataFrame(arr, layers, loss_types, np.float32)
+        weights_shape = (len(self.model.layers()), len(SetWeights.loss_names))
+        self.weights = pd.DataFrame(
+            np.ones(weights_shape), self.model.layers(), SetWeights.loss_names, np.float32)
+        self.scalar_weights = {w: 1 for w in SetWeights.scalar_loss_names}
+        self.optimizer = None
 
     def set_input(self, image):
         self.input = self.model.preprocess(image)
+        self.optimizer = AdamOptimizer(self.input)
 
     def set_content(self, image):
         image = self.model.preprocess(image)
-        self.features = self.model.forward(image)
+        self.features = {k: v.copy() for k, v in self.model.forward(image).items()}
 
     def set_style(self, image):
         image = self.model.preprocess(image)
@@ -115,33 +136,53 @@ class StyleTransfer:
             feat = feat.reshape((n, mh * mw))
             self.grams[layer] = np.dot(feat, feat.T) / np.float32(feat.size)
 
+    def set_step_size(self, step_size):
+        self.optimizer.step_size = step_size
+
+    def set_weights(self, weights, scalar_weights):
+        self.weights = pd.DataFrame.from_dict(weights, dtype=np.float32)
+        self.scalar_weights = scalar_weights
+
     def step(self):
         self.i += 1
         # Get list of layers to provide gradients to
-        nonzeros = self.weights != 0
-        layers = self.weights.index[nonzeros.sum(axis=1) != 0]
+        nonzeros = abs(self.weights) > 1e-15
+        layers = self.weights.index[abs(nonzeros.sum(axis=1)) > 1e-15]
 
         # Compute the loss and gradient at each of those layers
         current_feats = self.model.forward(self.input)
         loss = 0
         diffs = {}
         for layer in layers:
+            diffs[layer] = np.zeros_like(self.features[layer])
+
             # Content gradient
-            c_grad = current_feats[layer] - self.features[layer]
-            c_grad *= 2 / c_grad.size
-            loss += self.weights.content[layer] * np.sum(c_grad**2) / c_grad.size
-            diffs[layer] = self.weights.content[layer] * c_grad
+            if abs(self.weights['content'][layer]) > 1e-15:
+                c_grad = current_feats[layer] - self.features[layer]
+                c_grad *= 2 / c_grad.size
+                loss += self.weights['content'][layer] * np.mean(c_grad**2)
+                diffs[layer] += self.weights['content'][layer] * c_grad
+
+            # Style gradient
+            if abs(self.weights['style'][layer]) > 1e-15:
+                _, n, mh, mw = current_feats[layer].shape
+                feat = current_feats[layer].reshape((n, mh * mw))
+                current_gram = np.dot(feat, feat.T) / np.float32(feat.size)
+                gram_diff = current_gram - self.grams[layer]
+                loss += self.weights['style'][layer] * np.mean(gram_diff**2)
+                s_grad = 2 * np.dot(gram_diff, feat).reshape((1, n, mh, mw)) / gram_diff.size
+                diffs[layer] += self.weights['style'][layer] * s_grad
 
         # Get the combined gradient via backpropagation
         grad = self.model.backward(diffs)
 
-        # Add the total-variation loss and gradient
+        # Add the total variation loss and gradient
         tv_loss, tv_grad = utils.tv_norm(self.input / 255)
-        loss += self.weights.tv['data'] * tv_loss
-        grad += self.weights.tv['data'] * tv_grad
+        loss += self.scalar_weights['tv'] * tv_loss
+        grad += self.scalar_weights['tv'] * tv_grad
 
         # Take a gradient descent step
-        self.input -= self.step_size * grad
+        self.optimizer.step(grad)
 
         return self.model.deprocess(self.input), loss
 
@@ -165,14 +206,14 @@ class Worker:
                     self.process_message(msg)
                 except zmq.ZMQError:
                     image, loss = self.transfer.step()
-                    new_msg = messages.Iterate(image, loss, self.transfer.i)
+                    new_msg = Iterate(image, loss, self.transfer.i)
                     self.sock_out.send_pyobj(new_msg)
                 continue
             msg = self.sock_in.recv_pyobj()
             self.process_message(msg)
 
     def process_message(self, msg):
-        if isinstance(msg, messages.SetImage):
+        if isinstance(msg, SetImage):
             if msg.slot == 'input':
                 self.transfer.set_input(msg.image)
             elif msg.slot == 'content':
@@ -182,7 +223,13 @@ class Worker:
             else:
                 logger.warning('Invalid message received.')
 
-        elif isinstance(msg, messages.StartIteration):
+        elif isinstance(msg, SetStepSize):
+            self.transfer.set_step_size(msg.step_size)
+
+        elif isinstance(msg, SetWeights):
+            self.transfer.set_weights(msg.weights, msg.scalar_weights)
+
+        elif isinstance(msg, StartIteration):
             self.transfer.is_running = True
 
         else:
