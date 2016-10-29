@@ -11,8 +11,8 @@ function upload(slot) {
 }
 
 $(document).ready(function() {
-    // Refresh the output image every five seconds.
-    var update_every = 5000;
+    // Refresh the output image every second.
+    var update_every = 1000;
     window.setInterval(function() {
         $("#output-image").attr("src", "/output.png");
     }, update_every);

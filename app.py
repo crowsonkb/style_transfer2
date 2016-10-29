@@ -53,9 +53,9 @@ async def upload(request):
     msg = await request.post()
     data = binascii.a2b_base64(msg['data'].partition(',')[2])
     image = np.float32(utils.resize_to_fit(Image.open(io.BytesIO(data)), int(msg['size'])))
-    if msg['slot'] == 'input':
-        app.input_arr = image
     app.sock_out.send_pyobj(SetImage(msg['slot'], image))
+    app.input_arr = np.random.uniform(0, 255, image.shape)
+    app.sock_out.send_pyobj(SetImage('input', app.input_arr))
     return web.Response()
 
 
@@ -67,7 +67,7 @@ async def worker_test(app):
     msg = SetImage('style', np.float32(Image.open('../style_transfer/seated-nude.jpg').resize((96, 96), Image.LANCZOS)))
     app.sock_out.send_pyobj(msg)
     app.sock_out.send_pyobj(SetStepSize(10))
-    app.sock_out.send_pyobj(SetWeights(dict(content=dict(conv4_2=1), style={'pool1':1e-3, 'pool2':1e-4, 'pool3':1e-5, 'pool4':1e-6}), {'tv': 5}))
+    app.sock_out.send_pyobj(SetWeights(dict(content=dict(conv4_2=1), style={'conv1_1':1e-2, 'conv2_1':1e-3, 'conv3_1':1e-4, 'conv4_1':1e-5}), {'tv': 5}))
     app.sock_out.send_pyobj(StartIteration())
 
     while True:

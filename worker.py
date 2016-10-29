@@ -133,7 +133,7 @@ class StyleTransfer:
     def __init__(self, model):
         self.model = model
         self.is_running = False
-        self.i = 0
+        self.original_input = None
         self.input = None
         self.content = None
         self.features = None
@@ -146,12 +146,9 @@ class StyleTransfer:
 
     def set_input(self, image):
         self.input = self.model.preprocess(image)
-        self.i = 0
-        if self.content is not None and self.input.shape != self.content.shape:
-            self.content = utils.resize(self.content, self.input.shape[2:])
-            features = self.model.forward(self.content)
-            self.features = {k: v.copy() for k, v in features.items()}
         self.optimizer = AdamOptimizer(self.input)
+        if self.content is not None and self.input.shape != self.content.shape:
+            self.input = self.optimizer.resize(self.content.shape[2:])
 
     def set_content(self, image):
         self.content = self.model.preprocess(image)
@@ -175,7 +172,6 @@ class StyleTransfer:
         self.scalar_weights = scalar_weights
 
     def step(self):
-        self.i += 1
         # Get list of layers to provide gradients to
         nonzeros = abs(self.weights) > 1e-15
         layers = self.weights.index[abs(nonzeros.sum(axis=1)) > 1e-15]
@@ -237,7 +233,7 @@ class Worker:
                     self.process_message(msg)
                 except zmq.ZMQError:
                     image, loss = self.transfer.step()
-                    new_msg = Iterate(image, loss, self.transfer.i)
+                    new_msg = Iterate(image, loss, self.transfer.optimizer.t)
                     self.sock_out.send_pyobj(new_msg)
                 continue
             msg = self.sock_in.recv_pyobj()
