@@ -14,8 +14,6 @@ def setup_exceptions(mode='Plain', color_scheme='Neutral'):
     except ImportError:
         pass
 
-setup_exceptions()
-
 
 def scales(size, min_size=1, factor=np.sqrt(2)):
     """Returns a list of scales that increase from min_size to size by a given factor."""
@@ -35,12 +33,12 @@ def scales(size, min_size=1, factor=np.sqrt(2)):
 
 
 def resize(arr, size, order=3):
-    """Resamples a CxHxW NumPy float array to a different HxW shape."""
+    """Resamples an NxCxHxW NumPy float array to a different HxW shape."""
     arr = np.float32(arr)
     h, w = size
-    hh, ww = arr.shape[1:]
-    resized_arr = ndimage.zoom(arr, (1, h/hh, w/ww), order=order, mode='nearest')
-    assert resized_arr.shape[1:] == size
+    hh, ww = arr.shape[2:]
+    resized_arr = ndimage.zoom(arr, (1, 1, h/hh, w/ww), order=order, mode='nearest')
+    assert resized_arr.shape[2:] == size
     return resized_arr
 
 

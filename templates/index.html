@@ -5,5 +5,10 @@
 {% endblock %}
 {% block content %}
     <h1>Style Transfer</h1>
-    <img src="/output.png" id="output-image" width="{{ width }}" height="{{ height }}">
+    <img src="/output.png" id="output-image"><br>
+    Set images:<br>
+    <input type="file" id="file-selector" name="file-selector"></input><br>
+    <button onclick="upload('input')">Set input</button>
+    <button onclick="upload('content')">Set content</button>
+    <button onclick="upload('style')">Set style</button><br>
 {% endblock %}

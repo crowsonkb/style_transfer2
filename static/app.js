@@ -1,5 +1,14 @@
 /* The main JavaScript file for the Style Transfer application. */
 
+function upload(slot) {
+    var reader = new FileReader();
+    reader.onload = function(e) {
+        var msg = {slot: slot, data: e.target.result};
+        $.post("/upload", msg);
+    };
+    reader.readAsDataURL($("#file-selector")[0].files[0])
+}
+
 $(document).ready(function() {
     // Refresh the output image every five seconds.
     var update_every = 5000;

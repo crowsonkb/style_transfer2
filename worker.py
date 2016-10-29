@@ -16,6 +16,8 @@ import zmq
 from messages import *
 import utils
 
+utils.setup_exceptions()
+
 MODULE_DIR = Path(__file__).parent.resolve()
 
 ctx = zmq.Context()
@@ -111,6 +113,13 @@ class AdamOptimizer:
         self.x -= ss * self.g1 / (np.sqrt(self.g2) + 1e-8)
         return self.x
 
+    def resize(self, size):
+        """Resamples the optimizer's internal state on the last two axes to a new HxW size."""
+        self.g1 = utils.resize(self.g1, size)
+        self.g2 = np.maximum(utils.resize(self.g2, size, order=1), 0)
+        self.x = utils.resize(self.x, size)
+        return self.x
+
 
 def gram_matrix(x):
     """Computes the Gram matrix of a feature map."""
@@ -126,6 +135,7 @@ class StyleTransfer:
         self.is_running = False
         self.i = 0
         self.input = None
+        self.content = None
         self.features = None
         self.grams = None
         weights_shape = (len(self.model.layers()), len(SetWeights.loss_names))
@@ -136,11 +146,19 @@ class StyleTransfer:
 
     def set_input(self, image):
         self.input = self.model.preprocess(image)
+        self.i = 0
+        if self.content is not None and self.input.shape != self.content.shape:
+            self.content = utils.resize(self.content, self.input.shape[2:])
+            features = self.model.forward(self.content)
+            self.features = {k: v.copy() for k, v in features.items()}
         self.optimizer = AdamOptimizer(self.input)
 
     def set_content(self, image):
-        image = self.model.preprocess(image)
-        self.features = {k: v.copy() for k, v in self.model.forward(image).items()}
+        self.content = self.model.preprocess(image)
+        features = self.model.forward(self.content)
+        self.features = {k: v.copy() for k, v in features.items()}
+        if self.input is not None and self.input.shape != self.content.shape:
+            self.input = self.optimizer.resize(self.content.shape[2:])
 
     def set_style(self, image):
         image = self.model.preprocess(image)

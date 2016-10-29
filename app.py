@@ -6,6 +6,7 @@
 # pylint: disable=redefined-outer-name
 
 import asyncio
+import binascii
 import configparser
 import io
 import logging
@@ -22,6 +23,8 @@ import zmq, zmq.asyncio
 from messages import *
 import utils
 
+utils.setup_exceptions()
+
 MODULE_DIR = Path(__file__).parent.resolve()
 STATIC_PATH = MODULE_DIR / 'static'
 TEMPLATES_PATH = MODULE_DIR / 'templates'
@@ -36,20 +39,29 @@ asyncio.set_event_loop(loop)
 
 @aiohttp_jinja2.template('index.html')
 async def root(request):
-    h, w, _ = request.app.output_arr.shape
-    return dict(width=w, height=h)
+    return {}
 
 
 async def output_image(request):
     buf = io.BytesIO()
-    utils.as_pil(request.app.output_arr).save(buf, format='png')
+    utils.as_pil(request.app.input_arr).save(buf, format='png')
     headers = {'Cache-Control': 'no-cache'}
     return web.Response(content_type='image/png', body=buf.getvalue(), headers=headers)
 
 
+async def upload(request):
+    msg = await request.post()
+    data = binascii.a2b_base64(msg['data'].partition(',')[2])
+    image = np.float32(Image.open(io.BytesIO(data)))
+    if msg['slot'] == 'input':
+        app.input_arr = image
+    app.sock_out.send_pyobj(SetImage(msg['slot'], image))
+    return web.Response()
+
+
 async def worker_test(app):
-    msg = SetImage('input', np.random.uniform(0, 255, (96, 96, 3)).astype(np.float32))
-    app.sock_out.send_pyobj(msg)
+    app.input_arr = np.random.uniform(0, 255, (96, 96, 3)).astype(np.float32)
+    app.sock_out.send_pyobj(SetImage('input', app.input_arr))
     msg = SetImage('content', np.float32(Image.open('../style_transfer/golden_gate.jpg').resize((96, 96), Image.LANCZOS)))
     app.sock_out.send_pyobj(msg)
     msg = SetImage('style', np.float32(Image.open('../style_transfer/seated-nude.jpg').resize((96, 96), Image.LANCZOS)))
@@ -59,9 +71,10 @@ async def worker_test(app):
     app.sock_out.send_pyobj(StartIteration())
 
     while True:
-        msg = await app.sock_in.recv_pyobj()
-        logger.info('iterate %d received, loss: %g', msg.i, msg.loss)
-        app.output_arr = msg.image
+        recv_msg = await app.sock_in.recv_pyobj()
+        if isinstance(recv_msg, Iterate):
+            logger.info('iterate %d received, loss: %g', recv_msg.i, recv_msg.loss)
+            app.input_arr = recv_msg.image
 
 
 async def startup_tasks(app):
@@ -86,6 +99,7 @@ def init():
     aiohttp_jinja2.setup(app, loader=jinja2.FileSystemLoader(str(TEMPLATES_PATH)))
     app.router.add_route('GET', '/', root)
     app.router.add_route('GET', '/output.png', output_image)
+    app.router.add_route('POST', '/upload', upload)
     app.router.add_static('/', STATIC_PATH)
 
     app.on_startup.append(startup_tasks)
