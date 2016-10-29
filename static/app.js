@@ -3,7 +3,8 @@
 function upload(slot) {
     var reader = new FileReader();
     reader.onload = function(e) {
-        var msg = {slot: slot, data: e.target.result};
+        var size = $("#resize-to").val()
+        var msg = {size: size, slot: slot, data: e.target.result};
         $.post("/upload", msg);
     };
     reader.readAsDataURL($("#file-selector")[0].files[0])

@@ -42,6 +42,22 @@ def resize(arr, size, order=3):
     return resized_arr
 
 
+def resize_to_fit(image, size, scale_up=False):
+    """Resizes a PIL image to fit into a size-by-size square."""
+    size = int(round(size))
+    w, h = image.size
+    if not scale_up and max(w, h) <= size:
+        return image
+    new_w, new_h = w, h
+    if w > h:
+        new_w = size
+        new_h = int(round(size * h/w))
+    else:
+        new_h = size
+        new_w = int(round(size * w/h))
+    return image.resize((new_w, new_h), Image.LANCZOS)
+
+
 def roll_by_1(arr, shift, axis):
     """Rolls a 4D array in-place by a shift of one element. Axes 2 and 3 only."""
     if axis == 2:
