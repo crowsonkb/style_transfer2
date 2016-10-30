@@ -44,12 +44,12 @@ def scales(size, min_size=1, factor=np.sqrt(2)):
     return sizes
 
 
-def resize(arr, size, order=3):
+def resize(arr, size, order=1):
     """Resamples an NxCxHxW NumPy float array to a different HxW shape."""
     arr = np.float32(arr)
     h, w = size
     hh, ww = arr.shape[2:]
-    resized_arr = ndimage.zoom(arr, (1, 1, h/hh, w/ww), order=order, mode='nearest')
+    resized_arr = ndimage.zoom(arr, (1, 1, h/hh, w/ww), order=order)
     assert resized_arr.shape[2:] == size
     return resized_arr
 
