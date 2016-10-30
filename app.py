@@ -87,8 +87,8 @@ async def worker_test(app):
     app.sock_out.send_pyobj(msg)
     msg = SetImage('style', np.float32(Image.open('../style_transfer/seated-nude.jpg').resize((96, 96), Image.LANCZOS)))
     app.sock_out.send_pyobj(msg)
-    app.sock_out.send_pyobj(SetStepSize(10))
-    app.sock_out.send_pyobj(SetWeights(dict(content=dict(conv4_2=0.1), style={'conv1_1':1, 'conv2_1':1, 'conv3_1':1, 'conv4_1':1}), {'tv': 5}))
+    app.sock_out.send_pyobj(SetStepSize(15))
+    app.sock_out.send_pyobj(SetWeights(dict(content=dict(conv4_2=1/15), style={'conv1_1':1, 'conv2_1':1, 'conv3_1':1, 'conv4_1':1}), {'tv': 10}))
     app.sock_out.send_pyobj(StartIteration())
 
     while True:
