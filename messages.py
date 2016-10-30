@@ -48,6 +48,11 @@ class SetWeights:
         self.scalar_weights = scalar_weights
 
 
+class Shutdown:
+    """Signals the receiving process to shut down."""
+    pass
+
+
 class StartIteration:
     """Signals the worker to start iteration."""
     pass

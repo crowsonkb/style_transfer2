@@ -262,18 +262,21 @@ class Worker:
         self.transfer = StyleTransfer(model)
 
     def run(self):
-        while True:
-            if self.transfer.is_running:
-                try:
-                    msg = self.sock_in.recv_pyobj(zmq.NOBLOCK)
-                    self.process_message(msg)
-                except zmq.ZMQError:
-                    image, loss = self.transfer.step()
-                    new_msg = Iterate(image, loss, self.transfer.optimizer.t)
-                    self.sock_out.send_pyobj(new_msg)
-                continue
-            msg = self.sock_in.recv_pyobj()
-            self.process_message(msg)
+        try:
+            while True:
+                if self.transfer.is_running:
+                    try:
+                        msg = self.sock_in.recv_pyobj(zmq.NOBLOCK)
+                        self.process_message(msg)
+                    except zmq.ZMQError:
+                        image, loss = self.transfer.step()
+                        new_msg = Iterate(image, loss, self.transfer.optimizer.t)
+                        self.sock_out.send_pyobj(new_msg)
+                    continue
+                msg = self.sock_in.recv_pyobj()
+                self.process_message(msg)
+        except KeyboardInterrupt:
+            self.sock_out.send_pyobj(Shutdown())
 
     def process_message(self, msg):
         def is_image(obj):
@@ -315,6 +318,7 @@ def main():
         sys.path.append(config['caffe_path'] + '/python')
 
     utils.setup_logging()
+
     Worker(config).run()
 
 

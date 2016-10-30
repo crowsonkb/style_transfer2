@@ -168,6 +168,12 @@ async def process_messages(app):
             send_websocket(app, msg)
             app.input_arr = recv_msg.image
 
+        elif isinstance(recv_msg, Shutdown):
+            raise KeyboardInterrupt()
+
+        else:
+            logger.warning('Unknown message type received over ZeroMQ.')
+
 
 async def startup_tasks(app):
     app.sock_in = ctx.socket(zmq.PULL)
@@ -179,11 +185,12 @@ async def startup_tasks(app):
     app.its_per_s = 0
     app.params = {}
     asyncio.ensure_future(init_arrays(app))
-    asyncio.ensure_future(process_messages(app))
+    app.pm_future = asyncio.ensure_future(process_messages(app))
     app.worker_proc = subprocess.Popen([str(WORKER_PATH)])
 
 
 async def cleanup_tasks(app):
+    ctx.destroy()
     app.worker_proc.terminate()
 
 
@@ -208,7 +215,12 @@ app = init()
 def main():
     """The main function."""
     utils.setup_logging()
-    web.run_app(app, host=app.config['http_host'], port=app.config['http_port'])
+
+    try:
+        web.run_app(app, host=app.config['http_host'], port=app.config['http_port'])
+        loop.run_until_complete(app.pm_future)
+    except KeyboardInterrupt:
+        pass
 
 if __name__ == '__main__':
     main()
