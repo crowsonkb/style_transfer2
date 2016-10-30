@@ -20,6 +20,7 @@ import aiohttp_jinja2
 import jinja2
 import numpy as np
 from PIL import Image
+import yaml
 import zmq, zmq.asyncio
 
 from messages import *
@@ -80,16 +81,29 @@ async def websocket(request):
     return ws
 
 
-async def worker_test(app):
-    app.input_arr = np.random.uniform(0, 255, (96, 96, 3)).astype(np.float32)
+async def init_arrays(app):
+    content_path = str(MODULE_DIR / app.config['initial_content'])
+    style_path = str(MODULE_DIR / app.config['initial_style'])
+    weights_path = str(MODULE_DIR / app.config['initial_weights'])
+    size = app.config.getint('initial_size')
+
+    content = utils.resize_to_fit(Image.open(content_path), size).convert('RGB')
+    style = utils.resize_to_fit(Image.open(style_path), size).convert('RGB')
+    w, h = content.size
+
+    app.input_arr = np.float32(np.random.uniform(0, 255, (h, w, 3)))
     app.sock_out.send_pyobj(SetImage('input', app.input_arr))
-    msg = SetImage('content', np.float32(Image.open('../style_transfer/golden_gate.jpg').resize((96, 96), Image.LANCZOS)))
-    app.sock_out.send_pyobj(msg)
-    msg = SetImage('style', np.float32(Image.open('../style_transfer/seated-nude.jpg').resize((96, 96), Image.LANCZOS)))
-    app.sock_out.send_pyobj(msg)
-    app.sock_out.send_pyobj(SetWeights(dict(content=dict(conv4_2=1/15), style={'conv1_1':1, 'conv2_1':1, 'conv3_1':1, 'conv4_1':1}), {'tv': 10}))
+    app.sock_out.send_pyobj(SetImage('content', np.float32(content)))
+    app.sock_out.send_pyobj(SetImage('style', np.float32(style)))
+
+    with open(weights_path) as w:
+        weights = yaml.load(w)
+    app.sock_out.send_pyobj(SetWeights(*weights))
+
     app.sock_out.send_pyobj(StartIteration())
 
+
+async def process_messages(app):
     while True:
         recv_msg = await app.sock_in.recv_pyobj()
         if isinstance(recv_msg, Iterate):
@@ -128,7 +142,8 @@ async def startup_tasks(app):
     app.wss = []
     app.last_it_time = 0
     app.its_per_s = 0
-    asyncio.ensure_future(worker_test(app))
+    asyncio.ensure_future(init_arrays(app))
+    asyncio.ensure_future(process_messages(app))
     app.worker_proc = subprocess.Popen([str(WORKER_PATH)])
 
 
