@@ -192,9 +192,8 @@ class StyleTransfer:
             # Style gradient
             if abs(self.weights['style'][layer]) > 1e-15:
                 _, n, mh, mw = current_feats[layer].shape
+                gram_diff = gram_matrix(current_feats[layer]) - self.grams[layer]
                 feat = current_feats[layer].reshape((n, mh * mw))
-                current_gram = np.dot(feat, feat.T) / np.float32(feat.size)
-                gram_diff = current_gram - self.grams[layer]
                 loss += self.weights['style'][layer] * np.mean(gram_diff**2)
                 s_grad = 2 * np.dot(gram_diff, feat).reshape((1, n, mh, mw)) / gram_diff.size
                 diffs[layer] += self.weights['style'][layer] * s_grad
