@@ -7,7 +7,6 @@
 
 import asyncio
 import binascii
-import configparser
 import io
 import logging
 import json
