@@ -1,3 +1,4 @@
+from contextlib import contextmanager
 import sys
 
 import numpy as np
@@ -5,6 +6,17 @@ from PIL import Image
 from scipy import ndimage
 
 logging_format = '%(asctime)s %(filename)s %(levelname)s: %(message)s'
+
+
+@contextmanager
+def profile():
+    from accelerate import profiler
+    prof = profiler.Profile()
+    prof.enable()
+    yield
+    prof.disable()
+    prof.print_stats(1)
+    prof.clear()
 
 
 def setup_exceptions(mode='Plain', color_scheme='Neutral'):
