@@ -42,7 +42,7 @@ asyncio.set_event_loop(loop)
 
 @aiohttp_jinja2.template('index.html')
 async def root(request):
-    return {}
+    return dict(size=max(request.app.input_arr.shape))
 
 
 async def output_image(request):
