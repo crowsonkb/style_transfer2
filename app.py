@@ -42,8 +42,7 @@ asyncio.set_event_loop(loop)
 
 @aiohttp_jinja2.template('index.html')
 async def root(request):
-    return dict(size=max(request.app.input_arr.shape),
-                params=get_params(request.app))
+    return dict(size=max(request.app.input_arr.shape))
 
 
 async def output_image(request):
@@ -72,6 +71,8 @@ async def websocket(request):
     ws = web.WebSocketResponse()
     await ws.prepare(request)
     request.app.wss.append(ws)
+
+    send_websocket(app, dict(type='newParams', params=get_params(app)))
 
     async for msg in ws:
         if msg.type == aiohttp.WSMsgType.TEXT:

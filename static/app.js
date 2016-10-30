@@ -29,20 +29,26 @@ $(document).ready(function() {
         $("#output-image").attr("src", "/output.png");
     }, update_every);
 
-    ws = new WebSocket("ws://" + window.location.host + "/websocket");
-    ws.onmessage = function(e) {
-        var msg = JSON.parse(e.data);
+    function ws_connect() {
+        ws = new WebSocket("ws://" + window.location.host + "/websocket");
 
-        switch (msg.type) {
-        case "iterateInfo":
-            $("#iterate").text(msg.i);
-            $("#loss").text(msg.loss.toPrecision(4));
-            $("#step-size").text(msg.stepSize.toPrecision(3));
-            $("#its-per-s").text(msg.itsPerS.toPrecision(3));
-            break;
-        case "newParams":
-            $("#params").val(msg.params);
-            break;
-        }
-    };
+        ws.onmessage = function(e) {
+            var msg = JSON.parse(e.data);
+
+            switch (msg.type) {
+            case "iterateInfo":
+                $("#iterate").text(msg.i);
+                $("#loss").text(msg.loss.toPrecision(4));
+                $("#step-size").text(msg.stepSize.toPrecision(3));
+                $("#its-per-s").text(msg.itsPerS.toPrecision(3));
+                break;
+            case "newParams":
+                $("#params").val(msg.params);
+                break;
+            }
+        };
+
+        ws.onclose = function(e) { ws_connect(); };
+    }
+    ws_connect();
 });
