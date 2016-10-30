@@ -2,7 +2,6 @@
 
 """The worker module for Style Transfer."""
 
-
 import configparser
 import logging
 import os
@@ -150,6 +149,8 @@ class StyleTransfer:
             np.ones(weights_shape), self.model.layers(), SetWeights.loss_names, np.float32)
         self.scalar_weights = {w: 1 for w in SetWeights.scalar_loss_names}
         self.optimizer = None
+        self.c_grad_norms = {}
+        self.s_grad_norms = {}
 
     def set_input(self, image):
         self.input = self.model.preprocess(image)
@@ -188,23 +189,28 @@ class StyleTransfer:
         loss = 0
         diffs = {}
         for layer in layers:
+            cw, sw = self.weights['content'][layer], self.weights['style'][layer]
             diffs[layer] = np.zeros_like(self.features[layer])
 
             # Content gradient
-            if abs(self.weights['content'][layer]) > 1e-15:
+            if abs(cw) > 1e-15:
                 c_grad = current_feats[layer] - self.features[layer]
                 c_grad *= 2 / c_grad.size
-                loss += self.weights['content'][layer] * np.mean(c_grad**2)
-                diffs[layer] += self.weights['content'][layer] * c_grad
+                loss += cw * np.mean(c_grad**2)
+                if layer not in self.c_grad_norms:
+                    self.c_grad_norms[layer] = np.sqrt(np.mean(c_grad**2))
+                diffs[layer] += cw * c_grad / self.c_grad_norms[layer]
 
             # Style gradient
-            if abs(self.weights['style'][layer]) > 1e-15:
+            if abs(sw) > 1e-15:
                 _, n, mh, mw = current_feats[layer].shape
                 gram_diff = gram_matrix(current_feats[layer]) - self.grams[layer]
                 feat = current_feats[layer].reshape((n, mh * mw))
-                loss += self.weights['style'][layer] * np.mean(gram_diff**2)
-                s_grad = 2 * np.dot(gram_diff, feat).reshape((1, n, mh, mw)) / gram_diff.size
-                diffs[layer] += self.weights['style'][layer] * s_grad
+                s_grad = 2 * np.dot(gram_diff, feat).reshape((1, n, mh, mw)) / feat.size
+                if layer not in self.s_grad_norms:
+                    self.s_grad_norms[layer] = np.sqrt(np.mean(s_grad**2))
+                loss += sw * np.mean(gram_diff**2) / self.s_grad_norms[layer]
+                diffs[layer] += sw * s_grad / self.s_grad_norms[layer]
 
         # Get the combined gradient via backpropagation
         grad = self.model.backward(diffs)
