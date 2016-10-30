@@ -182,7 +182,7 @@ class StyleTransfer:
         self.weights = pd.DataFrame.from_dict(weights, dtype=np.float32)
         self.scalar_weights = scalar_weights
 
-    def opfunc(self, x):
+    def opfunc(self, x, return_grad=True):
         # Get list of layers to provide gradients to
         nonzeros = abs(self.weights) > 1e-15
         layers = self.weights.index[abs(nonzeros.sum(axis=1)) > 1e-15]
@@ -215,12 +215,15 @@ class StyleTransfer:
                 loss += sw * np.mean(gram_diff**2) / self.s_grad_norms[layer]
                 diffs[layer] += sw * s_grad / self.s_grad_norms[layer]
 
-        # Get the combined gradient via backpropagation
-        grad = self.model.backward(diffs)
-
-        # Add the total variation loss and gradient
+        # Get the total variation loss and gradient
         tv_loss, tv_grad = utils.tv_norm(x / 255)
         loss += self.scalar_weights['tv'] * tv_loss
+
+        if not return_grad:
+            return loss
+
+        # Get the combined gradient via backpropagation
+        grad = self.model.backward(diffs).copy()
         grad += self.scalar_weights['tv'] * tv_grad
 
         return loss, grad
