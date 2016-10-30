@@ -120,11 +120,15 @@ class AdamOptimizer:
         self.x -= ss * self.g1 / (np.sqrt(self.g2) + 1e-8)
         return self.x, loss
 
-    def resize(self, size):
+    def resample(self, size, new_x=None):
         """Resamples the optimizer's internal state on the last two axes to a new HxW size."""
+        if new_x is not None:
+            self.x = new_x
+            size = self.x.shape[2:]
+        else:
+            self.x = utils.resize(self.x, size)
         self.g1 = utils.resize(self.g1, size)
         self.g2 = np.maximum(utils.resize(self.g2, size, order=1), 0)
-        self.x = utils.resize(self.x, size)
         return self.x
 
 
@@ -153,7 +157,7 @@ class StyleTransfer:
         self.s_grad_norms = {}
 
     def resample_input(self, size):
-        self.input = self.optimizer.resize(size)
+        self.input = self.optimizer.resample(size)
 
     def resample_content(self, size):
         self.content = utils.resize(self.content, size)
@@ -167,7 +171,13 @@ class StyleTransfer:
         self.is_running = True
 
     def set_input(self, image):
-        self.input = self.model.preprocess(image)
+        image = self.model.preprocess(image)
+        if self.input is None:
+            self.input = image
+        elif self.input.shape == image.shape:
+            self.input[:] = image
+        else:
+            self.input = self.optimizer.resample(size=None, new_x=image)
 
     def set_content(self, image):
         self.content = self.model.preprocess(image)
@@ -282,6 +292,9 @@ class Worker:
 
             if is_image(msg.style_image):
                 self.transfer.set_style(msg.style_image)
+
+            if msg.reset_state:
+                self.transfer.start()
 
         elif isinstance(msg, SetStepSize):
             self.transfer.set_step_size(msg.step_size)

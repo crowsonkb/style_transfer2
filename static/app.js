@@ -8,6 +8,10 @@ function applyParams() {
     ws.send(JSON.stringify(msg));
 }
 
+function reset() {
+    ws.send(JSON.stringify({type: "reset"}));
+}
+
 function upload(slot) {
     var reader = new FileReader();
     reader.onload = function(e) {

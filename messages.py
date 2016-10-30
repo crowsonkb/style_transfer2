@@ -6,14 +6,19 @@ class SetImages:
     If a slot is set to None, it is left alone, unless that would
     create inconsistency i.e. the content and input images must be the same size. In that case the
     None slot will be set to an array of zeros. Alternately you can set that slot to
-    SetImages.RESAMPLE, which will direct the worker to resample the image to the given size."""
+    SetImages.RESAMPLE, which will direct the worker to resample the image to the given size.
+
+    If reset_state is true, the iterate count will be reset back to zero and the optimizer's
+    internal state will be cleared."""
     RESAMPLE = 1
 
-    def __init__(self, size=None, input_image=None, content_image=None, style_image=None):
+    def __init__(self, size=None, input_image=None, content_image=None, style_image=None,
+                 reset_state=False):
         self.size = size
         self.input_image = input_image
         self.content_image = content_image
         self.style_image = style_image
+        self.reset_state = reset_state
 
 
 class SetStepSize:

@@ -76,6 +76,10 @@ async def websocket(request):
             msg = json.loads(msg.data)
             if msg['type'] == 'applyParams':
                 process_params(request.app, msg)
+            elif msg['type'] == 'reset':
+                image = np.float32(np.random.uniform(0, 255, request.app.input_arr.shape))
+                request.app.input_arr = image
+                request.app.sock_out.send_pyobj(SetImages(input_image=image, reset_state=True))
             else:
                 logger.warning('Received an WebSocket message of unknown type.')
         else:

@@ -11,8 +11,9 @@
     Set images:<br>
     <input type="file" id="file-selector" name="file-selector"><br>
     Limit to: <input type="number" id="resize-to" value="{{ size }}" size="5"> px<br>
-    <button onclick="upload('content')">Set content</button>
-    <button onclick="upload('style')">Set style</button><br><br>
+    <button onclick="upload('content')">Set content to this</button>
+    <button onclick="upload('style')">Set style to this</button>
+    <button onclick="reset()">Reset state</button><br><br>
     Parameters:<br>
     <textarea id="params" rows="10" cols="60">{{ params }}</textarea><br>
     <button onclick="applyParams()">Apply params</button><br>
