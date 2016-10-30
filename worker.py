@@ -309,7 +309,7 @@ class Worker:
             self.transfer.start()
 
         else:
-            logger.warning('Invalid message received.')
+            logger.error('Invalid message received over ZeroMQ.')
 
 def main():
     """The main function."""

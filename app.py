@@ -78,6 +78,8 @@ async def websocket(request):
     async for msg in ws:
         if msg.type == aiohttp.WSMsgType.TEXT:
             msg = json.loads(msg.data)
+            if 'type' not in msg:
+                logger.error('Received an WebSocket message of unknown type.')
             if msg['type'] == 'applyParams':
                 process_params(request.app, msg)
             elif msg['type'] == 'reset':
@@ -85,7 +87,7 @@ async def websocket(request):
                 request.app.input_arr = image
                 request.app.sock_out.send_pyobj(SetImages(input_image=image, reset_state=True))
             else:
-                logger.warning('Received an WebSocket message of unknown type.')
+                logger.error('Received an WebSocket message of unknown type.')
         else:
             await ws.close()
 
@@ -174,7 +176,7 @@ async def process_messages(app):
             raise KeyboardInterrupt()
 
         else:
-            logger.warning('Unknown message type received over ZeroMQ.')
+            logger.error('Unknown message type received over ZeroMQ.')
 
 
 async def startup_tasks(app):
