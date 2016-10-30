@@ -23,6 +23,10 @@ MODULE_DIR = Path(__file__).parent.resolve()
 ctx = zmq.Context()
 logger = logging.getLogger(__name__)
 
+caffe_import_msg = '''
+ImportError: Caffe was not found in PYTHONPATH. Please edit config.ini to
+contain the line "caffe_path = <path to compiled Caffe>."'''
+
 
 class CaffeModel:
     """A Caffe neural network model."""
@@ -35,13 +39,17 @@ class CaffeModel:
         # Set environment variables before the first import of caffe, then import it
         logger.debug('Initializing Caffe.')
         os.environ['GLOG_minloglevel'] = '1'
-        if gpu >= 0:
-            os.environ['CUDA_VISIBLE_DEVICES'] = str(gpu)
-            import caffe  # pylint: disable=import-error
-            caffe.set_mode_gpu()
-        else:
-            import caffe  # pylint: disable=import-error
-            caffe.set_mode_cpu()
+        try:
+            if gpu >= 0:
+                os.environ['CUDA_VISIBLE_DEVICES'] = str(gpu)
+                import caffe  # pylint: disable=import-error
+                caffe.set_mode_gpu()
+            else:
+                import caffe  # pylint: disable=import-error
+                caffe.set_mode_cpu()
+        except ImportError:
+            print(caffe_import_msg, file=sys.stderr)
+            sys.exit(2)
 
         self.net = caffe.Net(str(self.model_path), 1, weights=str(self.weights_path))
         logger.debug('Caffe initialized.')
