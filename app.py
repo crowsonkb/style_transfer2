@@ -42,7 +42,8 @@ asyncio.set_event_loop(loop)
 
 @aiohttp_jinja2.template('index.html')
 async def root(request):
-    return dict(size=max(request.app.input_arr.shape))
+    return dict(size=max(request.app.input_arr.shape),
+                config=get_config(request.app))
 
 
 async def output_image(request):
@@ -74,11 +75,30 @@ async def websocket(request):
     async for msg in ws:
         if msg.type == aiohttp.WSMsgType.TEXT:
             msg = json.loads(msg.data)
+            if msg['type'] == 'applyConfig':
+                process_config(request.app, msg)
+            else:
+                logger.warning('Received an WebSocket message of unknown type.')
         else:
             await ws.close()
 
     request.app.wss.remove(ws)
     return ws
+
+
+def get_config(app):
+    config = {}
+    config['size'] = max(app.input_arr.shape)
+    config['weights'] = app.weights
+    return yaml.dump(config)
+
+
+def process_config(app, msg):
+    config = yaml.safe_load(msg['config'])
+    if config['size'] != max(app.input_arr.shape):
+        pass  # actually resize the image
+    app.weights = config['weights']
+    app.sock_out.send_pyobj(SetWeights(*app.weights))
 
 
 async def init_arrays(app):
@@ -97,8 +117,8 @@ async def init_arrays(app):
     app.sock_out.send_pyobj(SetImage('style', np.float32(style)))
 
     with open(weights_path) as w:
-        weights = yaml.load(w)
-    app.sock_out.send_pyobj(SetWeights(*weights))
+        app.weights = yaml.load(w)
+    app.sock_out.send_pyobj(SetWeights(*app.weights))
 
     app.sock_out.send_pyobj(StartIteration())
 

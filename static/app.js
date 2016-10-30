@@ -1,5 +1,13 @@
 /* The main JavaScript file for the Style Transfer application. */
 
+var ws;
+
+function applyConfig() {
+    var config = $("#config").val();
+    var msg = {type: "applyConfig", config: config};
+    ws.send(JSON.stringify(msg));
+}
+
 function upload(slot) {
     var reader = new FileReader();
     reader.onload = function(e) {
@@ -17,7 +25,7 @@ $(document).ready(function() {
         $("#output-image").attr("src", "/output.png");
     }, update_every);
 
-    var ws = new WebSocket("ws://" + window.location.host + "/websocket");
+    ws = new WebSocket("ws://" + window.location.host + "/websocket");
     ws.onmessage = function(e) {
         var msg = JSON.parse(e.data);
 

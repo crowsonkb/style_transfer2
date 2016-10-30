@@ -12,5 +12,8 @@
     <input type="file" id="file-selector" name="file-selector"><br>
     Limit to: <input type="number" id="resize-to" value="{{ size }}" size="5"> px<br>
     <button onclick="upload('content')">Set content</button>
-    <button onclick="upload('style')">Set style</button><br>
+    <button onclick="upload('style')">Set style</button><br><br>
+    Configuration:<br>
+    <textarea id="config" rows="10" cols="60">{{ config }}</textarea><br>
+    <button onclick="applyConfig()">Apply config</button><br>
 {% endblock %}
