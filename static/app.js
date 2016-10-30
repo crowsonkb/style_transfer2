@@ -24,8 +24,9 @@ $(document).ready(function() {
         switch (msg.type) {
         case "iterateInfo":
             $("#iterate").text(msg.i);
-            $("#loss").text(msg.loss);
-            $("#update-size").text(msg.updateSize);
+            $("#loss").text(msg.loss.toPrecision(6));
+            $("#step-size").text(msg.stepSize.toPrecision(6));
+            $("#its-per-s").text(msg.itsPerS.toPrecision(3));
             break;
         }
     };

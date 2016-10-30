@@ -96,12 +96,15 @@ async def worker_test(app):
         if isinstance(recv_msg, Iterate):
             update_size = np.nan
             if recv_msg.i > 0 and recv_msg.image.shape == app.input_arr.shape:
-                update_size = np.mean(np.abs(recv_msg.image - app.input_arr))
-            logger.info('iterate %d received, loss: %g, update size: %g',
-                        recv_msg.i, recv_msg.loss, update_size)
+                step_size = np.sqrt(np.mean(np.square(recv_msg.image - app.input_arr)))
+
+            logger.info('iterate %d received, loss: %g, step size: %g',
+                        recv_msg.i, recv_msg.loss, step_size)
+
+            # Notify the client that an iterate was received
             for ws in app.wss:
                 ws.send_json(dict(type='iterateInfo', i=recv_msg.i, loss=float(recv_msg.loss),
-                                  updateSize=float(update_size)))
+                                  stepSize=float(step_size), itsPerS=true_its_per_s))
             app.input_arr = recv_msg.image
 
 
