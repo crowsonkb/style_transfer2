@@ -52,7 +52,8 @@ async def output_image(request):
 async def upload(request):
     msg = await request.post()
     data = binascii.a2b_base64(msg['data'].partition(',')[2])
-    image = np.float32(utils.resize_to_fit(Image.open(io.BytesIO(data)), int(msg['size'])))
+    image = Image.open(io.BytesIO(data)).convert('RGB')
+    image = np.float32(utils.resize_to_fit(image, int(msg['size'])))
     app.sock_out.send_pyobj(SetImage(msg['slot'], image))
     app.input_arr = np.random.uniform(0, 255, image.shape)
     app.sock_out.send_pyobj(SetImage('input', app.input_arr))
