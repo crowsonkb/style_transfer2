@@ -57,11 +57,13 @@ async def upload(request):
     msg = await request.post()
     data = binascii.a2b_base64(msg['data'].partition(',')[2])
     image = Image.open(io.BytesIO(data)).convert('RGB')
-    image = np.float32(utils.resize_to_fit(image, int(msg['size'])))
+    current_image = np.float32(utils.resize_to_fit(image, int(msg['size'])))
     if msg['slot'] == 'style':
-        out_msg = SetImages(style_image=image)
+        out_msg = SetImages(style_image=current_image)
+        request.app.style_image = image
     elif msg['slot'] == 'content':
-        out_msg = SetImages(image.shape[:2], SetImages.RESAMPLE, image)
+        out_msg = SetImages(current_image.shape[:2], SetImages.RESAMPLE, current_image)
+        request.app.content_image = image
     request.app.sock_out.send_pyobj(out_msg)
     return web.Response()
 
@@ -102,33 +104,33 @@ def process_params(app, msg):
     try:
         params = yaml.safe_load(msg['params'])
         if params['size'] != max(app.input_arr.shape):
-            # TODO: keep original uploaded images in case they're higher resolution
             new_size = utils.fit_into_square(app.input_arr.shape[:2], params['size'], True)
-            app.sock_out.send_pyobj(SetImages(new_size, SetImages.RESAMPLE, SetImages.RESAMPLE))
+            content_image = app.content_image.resize(new_size[::-1], Image.LANCZOS)
+            msg_out = SetImages(new_size, SetImages.RESAMPLE, np.float32(content_image))
+            app.sock_out.send_pyobj(msg_out)
         app.weights = params['weights']
         app.sock_out.send_pyobj(SetWeights(*app.weights))
         app.params = params
     finally:
-        msg = dict(type='newParams', params=app.params)
+        msg = dict(type='newParams', params=get_params(app))
         send_websocket(app, msg)
 
 
 async def init_arrays(app):
-    content_path = str(MODULE_DIR / app.config['initial_content'])
-    style_path = str(MODULE_DIR / app.config['initial_style'])
-    weights_path = str(MODULE_DIR / app.config['initial_weights'])
+    app.content_image = Image.open(str(MODULE_DIR / app.config['initial_content'])).convert('RGB')
+    app.style_image = Image.open(str(MODULE_DIR / app.config['initial_style'])).convert('RGB')
     size = app.config.getint('initial_size')
     app.params['size'] = size
 
-    content = utils.resize_to_fit(Image.open(content_path), size).convert('RGB')
-    style = utils.resize_to_fit(Image.open(style_path), size).convert('RGB')
+    content = utils.resize_to_fit(app.content_image, size)
+    style = utils.resize_to_fit(app.style_image, size)
     w, h = content.size
 
     app.input_arr = np.float32(np.random.uniform(0, 255, (h, w, 3)))
     msg = SetImages(None, app.input_arr, np.float32(content), np.float32(style))
     app.sock_out.send_pyobj(msg)
 
-    with open(weights_path) as w:
+    with open(str(MODULE_DIR / app.config['initial_weights'])) as w:
         app.params['weights'] = yaml.load(w)
     app.sock_out.send_pyobj(SetWeights(*app.params['weights']))
 
