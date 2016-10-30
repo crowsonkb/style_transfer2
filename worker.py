@@ -2,7 +2,6 @@
 
 """The worker module for Style Transfer."""
 
-import configparser
 import logging
 import os
 from pathlib import Path
@@ -153,18 +152,25 @@ class StyleTransfer:
         self.c_grad_norms = {}
         self.s_grad_norms = {}
 
-    def set_input(self, image):
-        self.input = self.model.preprocess(image)
-        self.optimizer = AdamOptimizer(self.input, self.opfunc)
+    def resample_input(self, size):
+        self.input = self.optimizer.resize(size)
+
+    def resample_content(self, size):
+        self.content = utils.resize(self.content, size)
+        features = self.model.forward(self.content)
+        self.features = {k: v.copy() for k, v in features.items()}
+
+    def start(self):
         self.c_grad_norms = {}
         self.s_grad_norms = {}
-        if self.content is None or self.input.shape != self.content.shape:
-            self.content = np.zeros_like(self.input)
+        self.optimizer = AdamOptimizer(self.input, self.opfunc)
+        self.is_running = True
+
+    def set_input(self, image):
+        self.input = self.model.preprocess(image)
 
     def set_content(self, image):
         self.content = self.model.preprocess(image)
-        if self.input is None or self.input.shape != self.content.shape:
-            self.input = np.zeros_like(self.content)
         features = self.model.forward(self.content)
         self.features = {k: v.copy() for k, v in features.items()}
 
@@ -260,16 +266,22 @@ class Worker:
             self.process_message(msg)
 
     def process_message(self, msg):
-        if isinstance(msg, SetImage):
-            if msg.slot == 'input':
-                self.transfer.set_input(msg.image)
-                self.sock_out.send_pyobj(Iterate(msg.image, np.nan, 0))
-            elif msg.slot == 'content':
-                self.transfer.set_content(msg.image)
-            elif msg.slot == 'style':
-                self.transfer.set_style(msg.image)
-            else:
-                logger.warning('Invalid message received.')
+        def is_image(obj):
+            return obj is not None and not isinstance(obj, int)
+
+        if isinstance(msg, SetImages):
+            if is_image(msg.input_image):
+                self.transfer.set_input(msg.input_image)
+            elif msg.input_image == SetImages.RESAMPLE:
+                self.transfer.resample_input(msg.size)
+
+            if is_image(msg.content_image):
+                self.transfer.set_content(msg.content_image)
+            elif msg.content_image == SetImages.RESAMPLE:
+                self.transfer.resample_content(msg.size)
+
+            if is_image(msg.style_image):
+                self.transfer.set_style(msg.style_image)
 
         elif isinstance(msg, SetStepSize):
             self.transfer.set_step_size(msg.step_size)
@@ -278,7 +290,7 @@ class Worker:
             self.transfer.set_weights(msg.weights, msg.scalar_weights)
 
         elif isinstance(msg, StartIteration):
-            self.transfer.is_running = True
+            self.transfer.start()
 
         else:
             logger.warning('Invalid message received.')

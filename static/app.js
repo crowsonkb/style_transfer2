@@ -2,9 +2,9 @@
 
 var ws;
 
-function applyConfig() {
-    var config = $("#config").val();
-    var msg = {type: "applyConfig", config: config};
+function applyParams() {
+    var params = $("#params").val();
+    var msg = {type: "applyParams", params: params};
     ws.send(JSON.stringify(msg));
 }
 
@@ -36,6 +36,8 @@ $(document).ready(function() {
             $("#step-size").text(msg.stepSize.toPrecision(3));
             $("#its-per-s").text(msg.itsPerS.toPrecision(3));
             break;
+        case "newParams":
+            $("params").val(msg.params);
         }
     };
 });

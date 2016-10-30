@@ -1,12 +1,19 @@
-class SetImage:
+class SetImages:
     """A request from the app to the worker to set the image in a specific slot. Slots include
-    'content', 'style', 'input', etc. The image parameter should be a NumPy array in HxWx3 layout
-    with RGB channel order."""
-    slot_names = ('input', 'content', 'style')
+    'content', 'style', 'input', etc. An image parameter should be a NumPy array in HxWx3 layout
+    with RGB channel order.
 
-    def __init__(self, slot, image):
-        self.slot = slot
-        self.image = image
+    If a slot is set to None, it is left alone, unless that would
+    create inconsistency i.e. the content and input images must be the same size. In that case the
+    None slot will be set to an array of zeros. Alternately you can set that slot to
+    SetImages.RESAMPLE, which will direct the worker to resample the image to the given size."""
+    RESAMPLE = 1
+
+    def __init__(self, size=None, input_image=None, content_image=None, style_image=None):
+        self.size = size
+        self.input_image = input_image
+        self.content_image = content_image
+        self.style_image = style_image
 
 
 class SetStepSize:

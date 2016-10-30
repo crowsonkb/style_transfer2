@@ -43,7 +43,7 @@ asyncio.set_event_loop(loop)
 @aiohttp_jinja2.template('index.html')
 async def root(request):
     return dict(size=max(request.app.input_arr.shape),
-                config=get_config(request.app))
+                params=get_params(request.app))
 
 
 async def output_image(request):
@@ -58,12 +58,11 @@ async def upload(request):
     data = binascii.a2b_base64(msg['data'].partition(',')[2])
     image = Image.open(io.BytesIO(data)).convert('RGB')
     image = np.float32(utils.resize_to_fit(image, int(msg['size'])))
-    app.sock_out.send_pyobj(SetImage(msg['slot'], image))
-    if msg['slot'] == 'content':
-        new_input = np.random.uniform(0, 255, image.shape).astype(np.float32)
-    else:
-        new_input = np.random.uniform(0, 255, app.input_arr.shape).astype(np.float32)
-    app.sock_out.send_pyobj(SetImage('input', new_input))
+    if msg['slot'] == 'style':
+        out_msg = SetImages(style_image=image)
+    elif msg['slot'] == 'content':
+        out_msg = SetImages(image.shape[:2], SetImages.RESAMPLE, image)
+    request.app.sock_out.send_pyobj(out_msg)
     return web.Response()
 
 
@@ -75,8 +74,8 @@ async def websocket(request):
     async for msg in ws:
         if msg.type == aiohttp.WSMsgType.TEXT:
             msg = json.loads(msg.data)
-            if msg['type'] == 'applyConfig':
-                process_config(request.app, msg)
+            if msg['type'] == 'applyParams':
+                process_params(request.app, msg)
             else:
                 logger.warning('Received an WebSocket message of unknown type.')
         else:
@@ -86,19 +85,28 @@ async def websocket(request):
     return ws
 
 
-def get_config(app):
-    config = {}
-    config['size'] = max(app.input_arr.shape)
-    config['weights'] = app.weights
-    return yaml.dump(config)
+def send_websocket(app, msg):
+    for ws in app.wss:
+        ws.send_json(msg)
 
 
-def process_config(app, msg):
-    config = yaml.safe_load(msg['config'])
-    if config['size'] != max(app.input_arr.shape):
-        pass  # actually resize the image
-    app.weights = config['weights']
-    app.sock_out.send_pyobj(SetWeights(*app.weights))
+def get_params(app):
+    return yaml.dump(app.params)
+
+
+def process_params(app, msg):
+    try:
+        params = yaml.safe_load(msg['params'])
+        if params['size'] != max(app.input_arr.shape):
+            # TODO: keep original uploaded images in case they're higher resolution
+            new_size = utils.fit_into_square(app.input_arr.shape[:2], params['size'], True)
+            app.sock_out.send_pyobj(SetImages(new_size, SetImages.RESAMPLE, SetImages.RESAMPLE))
+        app.weights = params['weights']
+        app.sock_out.send_pyobj(SetWeights(*app.weights))
+        app.params = params
+    finally:
+        msg = dict(type='newParams', params=app.params)
+        send_websocket(app, msg)
 
 
 async def init_arrays(app):
@@ -106,19 +114,19 @@ async def init_arrays(app):
     style_path = str(MODULE_DIR / app.config['initial_style'])
     weights_path = str(MODULE_DIR / app.config['initial_weights'])
     size = app.config.getint('initial_size')
+    app.params['size'] = size
 
     content = utils.resize_to_fit(Image.open(content_path), size).convert('RGB')
     style = utils.resize_to_fit(Image.open(style_path), size).convert('RGB')
     w, h = content.size
 
     app.input_arr = np.float32(np.random.uniform(0, 255, (h, w, 3)))
-    app.sock_out.send_pyobj(SetImage('input', app.input_arr))
-    app.sock_out.send_pyobj(SetImage('content', np.float32(content)))
-    app.sock_out.send_pyobj(SetImage('style', np.float32(style)))
+    msg = SetImages(None, app.input_arr, np.float32(content), np.float32(style))
+    app.sock_out.send_pyobj(msg)
 
     with open(weights_path) as w:
-        app.weights = yaml.load(w)
-    app.sock_out.send_pyobj(SetWeights(*app.weights))
+        app.params['weights'] = yaml.load(w)
+    app.sock_out.send_pyobj(SetWeights(*app.params['weights']))
 
     app.sock_out.send_pyobj(StartIteration())
 
@@ -148,9 +156,9 @@ async def process_messages(app):
 
             # Notify the client that an iterate was received
             snr = 10 * np.log10(recv_msg.image.size / recv_msg.loss)
-            for ws in app.wss:
-                ws.send_json(dict(type='iterateInfo', i=recv_msg.i, loss=float(snr),
-                                  stepSize=float(step_size), itsPerS=true_its_per_s))
+            msg = dict(type='iterateInfo', i=recv_msg.i, loss=float(snr),
+                       stepSize=float(step_size), itsPerS=true_its_per_s)
+            send_websocket(app, msg)
             app.input_arr = recv_msg.image
 
 
@@ -162,6 +170,7 @@ async def startup_tasks(app):
     app.wss = []
     app.last_it_time = 0
     app.its_per_s = 0
+    app.params = {}
     asyncio.ensure_future(init_arrays(app))
     asyncio.ensure_future(process_messages(app))
     app.worker_proc = subprocess.Popen([str(WORKER_PATH)])

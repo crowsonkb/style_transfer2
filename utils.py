@@ -76,12 +76,12 @@ def resize(arr, size, order=1):
     return resized_arr
 
 
-def resize_to_fit(image, size, scale_up=False):
-    """Resizes a PIL image to fit into a size-by-size square."""
+def fit_into_square(current_size, size, scale_up=False):
+    """Determines the aspect-preserving size that fits into a size-by-size square."""
     size = int(round(size))
-    w, h = image.size
+    w, h = current_size
     if not scale_up and max(w, h) <= size:
-        return image
+        return current_size
     new_w, new_h = w, h
     if w > h:
         new_w = size
@@ -89,7 +89,13 @@ def resize_to_fit(image, size, scale_up=False):
     else:
         new_h = size
         new_w = int(round(size * w/h))
-    return image.resize((new_w, new_h), Image.LANCZOS)
+    return (new_w, new_h)
+
+
+def resize_to_fit(image, size, scale_up=False):
+    """Resizes a PIL image to fit into a size-by-size square."""
+    new_size = fit_into_square(image.size, size, scale_up)
+    return image.resize(new_size, Image.LANCZOS)
 
 
 def roll_by_1(arr, shift, axis):
