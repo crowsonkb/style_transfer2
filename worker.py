@@ -274,7 +274,8 @@ class Worker:
                         self.sock_out.send_pyobj(new_msg)
                     continue
                 msg = self.sock_in.recv_pyobj()
-                self.process_message(msg)
+                if self.process_message(msg):
+                    break
         except KeyboardInterrupt:
             self.sock_out.send_pyobj(Shutdown())
 
@@ -305,11 +306,17 @@ class Worker:
         elif isinstance(msg, SetWeights):
             self.transfer.set_weights(msg.weights, msg.scalar_weights)
 
+        elif isinstance(msg, Shutdown):
+            return True
+
         elif isinstance(msg, StartIteration):
             self.transfer.start()
 
         else:
             logger.error('Invalid message received over ZeroMQ.')
+
+        return False
+
 
 def main():
     """The main function."""
@@ -320,6 +327,7 @@ def main():
     utils.setup_logging()
 
     Worker(config).run()
+    logger.info('Shutting down worker process.')
 
 
 if __name__ == '__main__':

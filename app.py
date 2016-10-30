@@ -173,7 +173,7 @@ async def process_messages(app):
             app.input_arr = recv_msg.image
 
         elif isinstance(recv_msg, Shutdown):
-            raise KeyboardInterrupt()
+            return
 
         else:
             logger.error('Unknown message type received over ZeroMQ.')
@@ -194,8 +194,12 @@ async def startup_tasks(app):
 
 
 async def cleanup_tasks(app):
-    ctx.destroy()
-    app.worker_proc.terminate()
+    app.pm_future.cancel()
+    app.sock_out.send_pyobj(Shutdown())
+    try:
+        app.worker_proc.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        app.worker_proc.terminate()
 
 
 def init():
@@ -219,12 +223,7 @@ app = init()
 def main():
     """The main function."""
     utils.setup_logging()
-
-    try:
-        web.run_app(app, host=app.config['http_host'], port=app.config['http_port'])
-        loop.run_until_complete(app.pm_future)
-    except KeyboardInterrupt:
-        pass
+    web.run_app(app, host=app.config['http_host'], port=app.config['http_port'])
 
 if __name__ == '__main__':
     main()
