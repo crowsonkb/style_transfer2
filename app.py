@@ -119,8 +119,7 @@ app = init()
 
 def main():
     """The main function."""
-    logging.basicConfig(level=logging.DEBUG, format=utils.logging_format)
-    logging.captureWarnings(True)
+    utils.setup_logging()
     web.run_app(app, host=app.config['http_host'], port=app.config['http_port'])
 
 if __name__ == '__main__':

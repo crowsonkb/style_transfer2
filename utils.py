@@ -1,11 +1,10 @@
 from contextlib import contextmanager
+import logging
 import sys
 
 import numpy as np
 from PIL import Image
 from scipy import ndimage
-
-logging_format = '%(asctime)s %(filename)s %(levelname)s: %(message)s'
 
 
 @contextmanager
@@ -17,6 +16,14 @@ def profile():
     prof.disable()
     prof.print_stats(1)
     prof.clear()
+
+
+def setup_logging():
+    fmt = '%(asctime)s.%(msecs)03d %(filename)s %(levelname)s: %(message)s'
+    datefmt = '%H:%M:%S'
+    logging.basicConfig(level=logging.DEBUG, format=fmt, datefmt=datefmt)
+    logging.captureWarnings(True)
+
 
 
 def setup_exceptions(mode='Plain', color_scheme='Neutral'):

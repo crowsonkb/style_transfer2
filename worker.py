@@ -270,9 +270,7 @@ def main():
     if 'caffe_path' in config:
         sys.path.append(config['caffe_path'] + '/python')
 
-    logging.basicConfig(level=logging.DEBUG, format=utils.logging_format)
-    logging.captureWarnings(True)
-
+    utils.setup_logging()
     Worker(config).run()
 
 
