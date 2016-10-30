@@ -45,6 +45,9 @@ $(document).ready(function() {
             case "newParams":
                 $("#params").val(msg.params);
                 break;
+            case "newSize":
+                $("#resize-to").val(msg.size);
+                break;
             }
         };
 
