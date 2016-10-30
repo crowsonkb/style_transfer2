@@ -23,11 +23,14 @@ function upload(slot) {
 }
 
 $(document).ready(function() {
-    // Refresh the output image every second.
+    // Wait one second after loading to refresh output image
     var update_every = 1000;
-    window.setInterval(function() {
-        $("#output-image").attr("src", "/output.png");
-    }, update_every);
+    $("#output-image").on("load", function() {
+        setTimeout(function() {
+            $("#output-image").attr("src", "/output.png");
+        }, update_every);
+    });
+    $("#output-image").attr("src", "/output.png");
 
     function ws_connect() {
         ws = new WebSocket("ws://" + window.location.host + "/websocket");
