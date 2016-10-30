@@ -55,8 +55,11 @@ async def upload(request):
     image = Image.open(io.BytesIO(data)).convert('RGB')
     image = np.float32(utils.resize_to_fit(image, int(msg['size'])))
     app.sock_out.send_pyobj(SetImage(msg['slot'], image))
-    app.input_arr = np.random.uniform(0, 255, image.shape)
-    app.sock_out.send_pyobj(SetImage('input', app.input_arr))
+    if msg['slot'] == 'content':
+        new_input = np.random.uniform(0, 255, image.shape).astype(np.float32)
+    else:
+        new_input = np.random.uniform(0, 255, app.input_arr.shape).astype(np.float32)
+    app.sock_out.send_pyobj(SetImage('input', new_input))
     return web.Response()
 
 
