@@ -196,9 +196,9 @@ class StyleTransfer:
             if abs(cw) > 1e-15:
                 c_grad = current_feats[layer] - self.features[layer]
                 c_grad *= 2 / c_grad.size
-                loss += cw * np.mean(c_grad**2)
                 if layer not in self.c_grad_norms:
                     self.c_grad_norms[layer] = np.sqrt(np.mean(c_grad**2))
+                loss += cw * np.mean(c_grad**2) / self.c_grad_norms[layer]
                 diffs[layer] += cw * c_grad / self.c_grad_norms[layer]
 
             # Style gradient
