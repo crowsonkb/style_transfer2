@@ -106,7 +106,8 @@ async def worker_test(app):
             # Compute RMS difference of iterates
             step_size = np.nan
             if recv_msg.i > 0 and recv_msg.image.shape == app.input_arr.shape:
-                step_size = np.sqrt(np.mean(np.square(recv_msg.image - app.input_arr)))
+                diff = recv_msg.image - app.input_arr
+                step_size = np.sqrt(np.mean(diff**2))
 
             logger.info('iterate %d received, loss: %g, step size: %g',
                         recv_msg.i, recv_msg.loss, step_size)
