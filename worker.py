@@ -99,8 +99,9 @@ class AdamOptimizer:
     array x, it takes scaled gradient descent steps when supplied with x's gradient. The step_size
     value controls the maximum amount a parameter may change per step. b1 and b2 are Adam momentum
     parameters which should not need to be changed from the default."""
-    def __init__(self, x, step_size=SetStepSize.default, b1=0.9, b2=0.999):
+    def __init__(self, x, opfunc, step_size=SetStepSize.default, b1=0.9, b2=0.999):
         self.x = x
+        self.opfunc = opfunc
         self.step_size = step_size
         self.b1 = b1
         self.b2 = b2
@@ -108,17 +109,17 @@ class AdamOptimizer:
         self.g1 = np.zeros_like(x)
         self.g2 = np.zeros_like(x)
 
-    def step(self, grad):
-        """Takes a scaled gradient descent step given x's gradient. Updates x in place, and returns
-        the new value of x."""
+    def step(self):
+        """Takes a scaled gradient descent step. Updates x in place, and returns the new value."""
         self.t += 1
+        loss, grad = self.opfunc(self.x)
 
         self.g1[:] = self.b1*self.g1 + (1-self.b1)*grad
         self.g2[:] = self.b2*self.g2 + (1-self.b2)*grad**2
         ss = self.step_size * np.sqrt(1-self.b2**self.t) / (1-self.b1**self.t)
 
         self.x -= ss * self.g1 / (np.sqrt(self.g2) + 1e-8)
-        return self.x
+        return self.x, loss
 
     def resize(self, size):
         """Resamples the optimizer's internal state on the last two axes to a new HxW size."""
@@ -154,7 +155,7 @@ class StyleTransfer:
 
     def set_input(self, image):
         self.input = self.model.preprocess(image)
-        self.optimizer = AdamOptimizer(self.input)
+        self.optimizer = AdamOptimizer(self.input, self.opfunc)
         self.c_grad_norms = {}
         self.s_grad_norms = {}
         if self.content is None or self.input.shape != self.content.shape:
@@ -181,13 +182,13 @@ class StyleTransfer:
         self.weights = pd.DataFrame.from_dict(weights, dtype=np.float32)
         self.scalar_weights = scalar_weights
 
-    def step(self):
+    def opfunc(self, x):
         # Get list of layers to provide gradients to
         nonzeros = abs(self.weights) > 1e-15
         layers = self.weights.index[abs(nonzeros.sum(axis=1)) > 1e-15]
 
         # Compute the loss and gradient at each of those layers
-        current_feats = self.model.forward(self.input)
+        current_feats = self.model.forward(x)
         loss = 0
         diffs = {}
         for layer in layers:
@@ -218,14 +219,16 @@ class StyleTransfer:
         grad = self.model.backward(diffs)
 
         # Add the total variation loss and gradient
-        tv_loss, tv_grad = utils.tv_norm(self.input / 255)
+        tv_loss, tv_grad = utils.tv_norm(x / 255)
         loss += self.scalar_weights['tv'] * tv_loss
         grad += self.scalar_weights['tv'] * tv_grad
 
-        # Take a gradient descent step
-        self.optimizer.step(grad)
+        return loss, grad
 
-        return self.model.deprocess(self.input), loss
+    def step(self):
+        """Take a gradient descent step."""
+        x, loss = self.optimizer.step()
+        return self.model.deprocess(x), loss
 
 
 class Worker:
