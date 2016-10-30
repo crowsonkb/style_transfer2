@@ -2,3 +2,4 @@ __pycache__
 venv
 *.caffemodel
 *.download
+config_non_git.ini

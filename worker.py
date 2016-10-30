@@ -263,10 +263,7 @@ class Worker:
 
 def main():
     """The main function."""
-    cp = configparser.ConfigParser()
-    cp.read(str(MODULE_DIR / 'config.ini'))
-    config = cp['DEFAULT']
-
+    config = utils.read_config()
     if 'caffe_path' in config:
         sys.path.append(config['caffe_path'] + '/python')
 

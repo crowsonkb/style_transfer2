@@ -100,9 +100,7 @@ async def cleanup_tasks(app):
 
 def init():
     app = web.Application()
-    cp = configparser.ConfigParser()
-    cp.read(str(MODULE_DIR / 'config.ini'))
-    app.config = cp['DEFAULT']
+    app.config = utils.read_config()
 
     aiohttp_jinja2.setup(app, loader=jinja2.FileSystemLoader(str(TEMPLATES_PATH)))
     app.router.add_route('GET', '/', root)

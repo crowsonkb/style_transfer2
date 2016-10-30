@@ -1,10 +1,18 @@
+"""Various functions which must be used by both the app and its worker process."""
+
+import configparser
 from contextlib import contextmanager
 import logging
+from pathlib import Path
 import sys
 
 import numpy as np
 from PIL import Image
 from scipy import ndimage
+
+MODULE_DIR = Path(__file__).parent.resolve()
+CONFIG_PATH = MODULE_DIR / 'config.ini'
+CONFIG_PATH_NON_GIT = MODULE_DIR / 'config_non_git.ini'
 
 
 @contextmanager
@@ -18,12 +26,12 @@ def profile():
     prof.clear()
 
 
-def setup_logging():
-    fmt = '%(asctime)s.%(msecs)03d %(filename)s %(levelname)s: %(message)s'
-    datefmt = '%H:%M:%S'
-    logging.basicConfig(level=logging.DEBUG, format=fmt, datefmt=datefmt)
-    logging.captureWarnings(True)
-
+def read_config():
+    cp = configparser.ConfigParser()
+    if cp.read(str(CONFIG_PATH_NON_GIT)):
+        return cp['DEFAULT']
+    cp.read(str(CONFIG_PATH))
+    return cp['DEFAULT']
 
 
 def setup_exceptions(mode='Plain', color_scheme='Neutral'):
@@ -32,6 +40,13 @@ def setup_exceptions(mode='Plain', color_scheme='Neutral'):
         sys.excepthook = ultratb.AutoFormattedTB(mode=mode, color_scheme=color_scheme)
     except ImportError:
         pass
+
+
+def setup_logging():
+    fmt = '%(asctime)s.%(msecs)03d %(filename)s %(levelname)s: %(message)s'
+    datefmt = '%H:%M:%S'
+    logging.basicConfig(level=logging.DEBUG, format=fmt, datefmt=datefmt)
+    logging.captureWarnings(True)
 
 
 def scales(size, min_size=1, factor=np.sqrt(2)):
