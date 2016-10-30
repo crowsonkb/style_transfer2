@@ -4,7 +4,7 @@ import numpy as np
 from PIL import Image
 from scipy import ndimage
 
-logging_format = '%(module)s: %(levelname)s: %(message)s'
+logging_format = '%(asctime)s %(filename)s %(levelname)s: %(message)s'
 
 
 def setup_exceptions(mode='Plain', color_scheme='Neutral'):
