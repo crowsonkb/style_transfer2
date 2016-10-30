@@ -245,7 +245,7 @@ class Worker:
                     self.process_message(msg)
                 except zmq.ZMQError:
                     image, loss = self.transfer.step()
-                    new_msg = Iterate(image, loss, self.transfer.optimizer.t)
+                    new_msg = Iterate(image, np.sqrt(loss), self.transfer.optimizer.t)
                     self.sock_out.send_pyobj(new_msg)
                 continue
             msg = self.sock_in.recv_pyobj()
