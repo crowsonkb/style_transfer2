@@ -77,7 +77,11 @@ async def worker_test(app):
     while True:
         recv_msg = await app.sock_in.recv_pyobj()
         if isinstance(recv_msg, Iterate):
-            logger.info('iterate %d received, loss: %g', recv_msg.i, recv_msg.loss)
+            update_size = np.nan
+            if recv_msg.i > 0 and recv_msg.image.shape == app.input_arr.shape:
+                update_size = np.mean(np.abs(recv_msg.image - app.input_arr))
+            logger.info('iterate %d received, loss: %g, update size: %g',
+                        recv_msg.i, recv_msg.loss, update_size)
             app.input_arr = recv_msg.image
 
 
