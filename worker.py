@@ -155,6 +155,8 @@ class StyleTransfer:
     def set_input(self, image):
         self.input = self.model.preprocess(image)
         self.optimizer = AdamOptimizer(self.input)
+        self.c_grad_norms = {}
+        self.s_grad_norms = {}
         if self.content is None or self.input.shape != self.content.shape:
             self.content = np.zeros_like(self.input)
 
