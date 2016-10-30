@@ -133,7 +133,6 @@ class StyleTransfer:
     def __init__(self, model):
         self.model = model
         self.is_running = False
-        self.original_input = None
         self.input = None
         self.content = None
         self.features = None
@@ -147,15 +146,15 @@ class StyleTransfer:
     def set_input(self, image):
         self.input = self.model.preprocess(image)
         self.optimizer = AdamOptimizer(self.input)
-        if self.content is not None and self.input.shape != self.content.shape:
-            self.input = self.optimizer.resize(self.content.shape[2:])
+        if self.content is None or self.input.shape != self.content.shape:
+            self.content = np.zeros_like(self.input)
 
     def set_content(self, image):
         self.content = self.model.preprocess(image)
+        if self.input is None or self.input.shape != self.content.shape:
+            self.input = np.zeros_like(self.content)
         features = self.model.forward(self.content)
         self.features = {k: v.copy() for k, v in features.items()}
-        if self.input is not None and self.input.shape != self.content.shape:
-            self.input = self.optimizer.resize(self.content.shape[2:])
 
     def set_style(self, image):
         image = self.model.preprocess(image)
@@ -243,6 +242,7 @@ class Worker:
         if isinstance(msg, SetImage):
             if msg.slot == 'input':
                 self.transfer.set_input(msg.image)
+                self.sock_out.send_pyobj(Iterate(msg.image, np.nan, 0))
             elif msg.slot == 'content':
                 self.transfer.set_content(msg.image)
             elif msg.slot == 'style':
