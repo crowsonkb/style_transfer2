@@ -13,6 +13,7 @@ import logging
 import json
 from pathlib import Path
 import subprocess
+import time
 
 import aiohttp
 from aiohttp import web
@@ -94,7 +95,18 @@ async def worker_test(app):
     while True:
         recv_msg = await app.sock_in.recv_pyobj()
         if isinstance(recv_msg, Iterate):
-            update_size = np.nan
+            # Update the average iterates per second value
+            it_time = time.perf_counter()
+            if recv_msg.i:
+                app.its_per_s = 0.9 * app.its_per_s + 0.1 / (it_time - app.last_it_time)
+                true_its_per_s = app.its_per_s / (1 - 0.9**recv_msg.i)
+            else:
+                app.its_per_s = 0
+                true_its_per_s = 0
+            app.last_it_time = it_time
+
+            # Compute RMS difference of iterates
+            step_size = np.nan
             if recv_msg.i > 0 and recv_msg.image.shape == app.input_arr.shape:
                 step_size = np.sqrt(np.mean(np.square(recv_msg.image - app.input_arr)))
 
@@ -114,6 +126,8 @@ async def startup_tasks(app):
     app.sock_in.bind(app.config['app_socket'])
     app.sock_out.connect(app.config['worker_socket'])
     app.wss = []
+    app.last_it_time = 0
+    app.its_per_s = 0
     asyncio.ensure_future(worker_test(app))
     app.worker_proc = subprocess.Popen([str(WORKER_PATH)])
 
