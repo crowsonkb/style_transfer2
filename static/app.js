@@ -24,8 +24,8 @@ $(document).ready(function() {
         switch (msg.type) {
         case "iterateInfo":
             $("#iterate").text(msg.i);
-            $("#loss").text(msg.loss.toPrecision(6));
-            $("#step-size").text(msg.stepSize.toPrecision(6));
+            $("#loss").text(msg.loss.toPrecision(4));
+            $("#step-size").text(msg.stepSize.toPrecision(3));
             $("#its-per-s").text(msg.itsPerS.toPrecision(3));
             break;
         }

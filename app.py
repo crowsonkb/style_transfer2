@@ -113,8 +113,9 @@ async def worker_test(app):
                         recv_msg.i, recv_msg.loss, step_size)
 
             # Notify the client that an iterate was received
+            snr = 10 * np.log10(recv_msg.image.size / recv_msg.loss)
             for ws in app.wss:
-                ws.send_json(dict(type='iterateInfo', i=recv_msg.i, loss=float(recv_msg.loss),
+                ws.send_json(dict(type='iterateInfo', i=recv_msg.i, loss=float(snr),
                                   stepSize=float(step_size), itsPerS=true_its_per_s))
             app.input_arr = recv_msg.image
 
