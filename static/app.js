@@ -41,7 +41,8 @@ $(document).ready(function() {
             $("#its-per-s").text(msg.itsPerS.toPrecision(3));
             break;
         case "newParams":
-            $("params").val(msg.params);
+            $("#params").val(msg.params);
+            break;
         }
     };
 });
