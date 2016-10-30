@@ -16,4 +16,17 @@ $(document).ready(function() {
     window.setInterval(function() {
         $("#output-image").attr("src", "/output.png");
     }, update_every);
+
+    var ws = new WebSocket("ws://" + window.location.host + "/websocket");
+    ws.onmessage = function(e) {
+        var msg = JSON.parse(e.data);
+
+        switch (msg.type) {
+        case "iterateInfo":
+            $("#iterate").text(msg.i);
+            $("#loss").text(msg.loss);
+            $("#update-size").text(msg.updateSize);
+            break;
+        }
+    };
 });

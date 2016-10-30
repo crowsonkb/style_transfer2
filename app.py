@@ -10,9 +10,11 @@ import binascii
 import configparser
 import io
 import logging
+import json
 from pathlib import Path
 import subprocess
 
+import aiohttp
 from aiohttp import web
 import aiohttp_jinja2
 import jinja2
@@ -63,6 +65,21 @@ async def upload(request):
     return web.Response()
 
 
+async def websocket(request):
+    ws = web.WebSocketResponse()
+    await ws.prepare(request)
+    request.app.wss.append(ws)
+
+    async for msg in ws:
+        if msg.type == aiohttp.WSMsgType.TEXT:
+            msg = json.loads(msg.data)
+        else:
+            await ws.close()
+
+    request.app.wss.remove(ws)
+    return ws
+
+
 async def worker_test(app):
     app.input_arr = np.random.uniform(0, 255, (96, 96, 3)).astype(np.float32)
     app.sock_out.send_pyobj(SetImage('input', app.input_arr))
@@ -82,6 +99,9 @@ async def worker_test(app):
                 update_size = np.mean(np.abs(recv_msg.image - app.input_arr))
             logger.info('iterate %d received, loss: %g, update size: %g',
                         recv_msg.i, recv_msg.loss, update_size)
+            for ws in app.wss:
+                ws.send_json(dict(type='iterateInfo', i=recv_msg.i, loss=float(recv_msg.loss),
+                                  updateSize=float(update_size)))
             app.input_arr = recv_msg.image
 
 
@@ -90,6 +110,7 @@ async def startup_tasks(app):
     app.sock_out = ctx.socket(zmq.PUSH)
     app.sock_in.bind(app.config['app_socket'])
     app.sock_out.connect(app.config['worker_socket'])
+    app.wss = []
     asyncio.ensure_future(worker_test(app))
     app.worker_proc = subprocess.Popen([str(WORKER_PATH)])
 
@@ -106,6 +127,7 @@ def init():
     app.router.add_route('GET', '/', root)
     app.router.add_route('GET', '/output.png', output_image)
     app.router.add_route('POST', '/upload', upload)
+    app.router.add_route('GET', '/websocket', websocket)
     app.router.add_static('/', STATIC_PATH)
 
     app.on_startup.append(startup_tasks)
