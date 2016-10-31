@@ -66,8 +66,9 @@ class PauseIteration:
 
 class Iterate:
     """A notification from the worker to the app that a new iterate has been produced. It contains
-    the image as a NumPy float32 array in HxWx3 layout with RGB channel order. 'i' is the number of
-    iterates produced since the start of iteration."""
+    the image as a NumPy float32 (or convertable-to-float32, since the receiver will call
+    np.float32() on all arrays received) array in HxWx3 layout with RGB channel order. 'i' is the
+    number of iterates produced since the start of iteration."""
     def __init__(self, image, loss, i):
         self.image = image
         self.loss = loss

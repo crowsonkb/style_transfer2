@@ -56,7 +56,7 @@ async def upload(request):
     msg = await request.post()
     data = binascii.a2b_base64(msg['data'].partition(',')[2])
     image = Image.open(io.BytesIO(data)).convert('RGB')
-    current_image = np.float32(utils.resize_to_fit(image, int(msg['size'])))
+    current_image = np.uint8(utils.resize_to_fit(image, int(msg['size'])))
     if msg['slot'] == 'style':
         out_msg = SetImages(style_image=current_image)
         request.app.style_image = image
@@ -93,7 +93,7 @@ async def websocket(request):
                 app.sock_out.send_pyobj(PauseIteration())
                 app.running = False
             elif msg['type'] == 'reset':
-                image = np.float32(np.random.uniform(0, 255, app.input_arr.shape))
+                image = np.uint8(np.random.uniform(0, 255, app.input_arr.shape))
                 app.input_arr = image
                 app.sock_out.send_pyobj(SetImages(input_image=image, reset_state=True))
             elif msg['type'] == 'start':
@@ -125,9 +125,9 @@ def process_params(app, msg):
             content_image = app.content_image.resize(new_size[::-1], Image.LANCZOS)
             input_image = SetImages.RESAMPLE
             if app.i == 0:
-                input_image = np.float32(np.random.uniform(0, 255, new_size + (3,)))
+                input_image = np.uint8(np.random.uniform(0, 255, new_size + (3,)))
                 app.input_arr = input_image
-            msg_out = SetImages(new_size, input_image, np.float32(content_image))
+            msg_out = SetImages(new_size, input_image, np.uint8(content_image))
             app.sock_out.send_pyobj(msg_out)
             send_websocket(app, dict(type='newSize', height=new_size[0], width=new_size[1]))
         app.weights = params['weights']
@@ -148,9 +148,9 @@ def init_arrays(app):
     style = utils.resize_to_fit(app.style_image, size)
     w, h = content.size
 
-    app.input_arr = np.float32(np.random.uniform(0, 255, (h, w, 3)))
+    app.input_arr = np.uint8(np.random.uniform(0, 255, (h, w, 3)))
     app.i = 0
-    msg = SetImages(None, app.input_arr, np.float32(content), np.float32(style))
+    msg = SetImages(None, app.input_arr, np.uint8(content), np.uint8(style))
     app.sock_out.send_pyobj(msg)
 
     with open(str(MODULE_DIR / app.config['initial_weights'])) as w:
