@@ -219,6 +219,8 @@ class StyleTransfer:
         self.s_grad_norms = {}
 
     def objective_changed(self):
+        self.c_grad_norms = {}
+        self.s_grad_norms = {}
         if self.optimizer is not None:
             self.optimizer.objective_changed()
 
@@ -230,6 +232,7 @@ class StyleTransfer:
             self.input = self.optimizer.resample(size)
         else:
             self.input = np.zeros((1, 3) + size, np.float32)
+        self.objective_changed()
 
     def resample_content(self, size):
         if self.content is not None:
@@ -238,6 +241,7 @@ class StyleTransfer:
             self.content = np.zeros((1, 3) + size, np.float32)
         features = self.model.forward(self.content)
         self.features = {k: v.copy() for k, v in features.items()}
+        self.objective_changed()
 
     def reset(self):
         self.c_grad_norms = {}
