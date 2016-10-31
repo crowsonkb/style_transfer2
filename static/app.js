@@ -67,7 +67,9 @@ $(document).ready(function() {
                 $("#params").val(msg.params);
                 break;
             case "newSize":
-                $("#resize-to").val(msg.size);
+                $("#resize-to").val(Math.max(msg.width, msg.height));
+                $("#output-image").attr("width", msg.width);
+                $("#output-image").attr("height", msg.height);
                 break;
             }
         };

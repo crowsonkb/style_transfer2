@@ -63,6 +63,10 @@ async def upload(request):
     elif msg['slot'] == 'content':
         out_msg = SetImages(current_image.shape[:2], SetImages.RESAMPLE, current_image)
         request.app.content_image = image
+        send_websocket(request.app, dict(type='newSize', height=current_image.shape[0],
+                                         width=current_image.shape[1]))
+        request.app.params['size'] = max(current_image.shape[:2])
+        send_websocket(request.app, dict(type='newParams', params=get_params(app)))
     request.app.sock_out.send_pyobj(out_msg)
     return web.Response()
 
@@ -73,7 +77,8 @@ async def websocket(request):
     request.app.wss.append(ws)
 
     send_websocket(app, dict(type='newParams', params=get_params(app)))
-    send_websocket(app, dict(type='newSize', size=max(request.app.input_arr.shape)))
+    h, w = request.app.input_arr.shape[:2]
+    send_websocket(app, dict(type='newSize', height=h, width=w))
 
     async for msg in ws:
         if msg.type == aiohttp.WSMsgType.TEXT:
@@ -120,7 +125,7 @@ def process_params(app, msg):
                 app.input_arr = input_image
             msg_out = SetImages(new_size, input_image, np.float32(content_image))
             app.sock_out.send_pyobj(msg_out)
-            send_websocket(app, dict(type='newSize', size=params['size']))
+            send_websocket(app, dict(type='newSize', height=new_size[0], width=new_size[1]))
         app.weights = params['weights']
         app.sock_out.send_pyobj(SetWeights(*app.weights))
         app.params = params
