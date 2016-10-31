@@ -26,6 +26,22 @@ def profile():
     prof.clear()
 
 
+@contextmanager
+def line_profile(fns, mods):
+    try:
+        from line_profiler import LineProfiler
+        prof = LineProfiler()
+        for fn in fns:
+            prof.add_function(fn)
+        for mod in mods:
+            prof.add_module(mod)
+        prof.enable()
+        yield
+    finally:
+        prof.disable()
+        prof.print_stats()
+
+
 def read_config():
     cp = configparser.ConfigParser()
     if cp.read(str(CONFIG_PATH_NON_GIT)):
