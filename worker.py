@@ -51,7 +51,7 @@ class CaffeModel:
 
     def __init__(self, gpu=-1):
         # Set environment variables before the first import of caffe, then import it
-        logger.debug('Initializing Caffe.')
+        logger.info('Initializing Caffe.')
         os.environ['GLOG_minloglevel'] = '1'
         try:
             if gpu >= 0:
@@ -66,7 +66,7 @@ class CaffeModel:
             sys.exit(2)
 
         self.net = caffe.Net(str(self.model_path), 1, weights=str(self.weights_path))
-        logger.debug('Caffe initialized.')
+        logger.info('Caffe initialized.')
 
     def preprocess(self, image):
         """Preprocesses an input image for use in the network."""
