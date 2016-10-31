@@ -23,7 +23,8 @@ class SetImages:
 
 class SetStepSize:
     """A request from the app to the worker to set the optimizer's step size (learning rate)."""
-    default = 10
+    default_adam = 10
+    default_lbfgs = 1
 
     def __init__(self, step_size):
         self.step_size = step_size

@@ -109,112 +109,38 @@ class CaffeModel:
         return self.net.blobs['data'].diff
 
 
-class Optimizer:
-    def __init__(self, x, opfunc, b1=0.9, b2=0.999, step_size=SetStepSize.default,
-                 n_corr=10, c1=1e-4, c2=0.9, max_ls_fevals=5):
-        """An optimizer that switches between the L-BFGS and Adam algorithms for function
-        minimization. It uses L-BFGS at first, then switches to Adam once a line search
-        has failed."""
+class LBFGSOptimizer:
+    def __init__(self, x, opfunc, step_size=1, n_corr=10):
+        """L-BFGS for function minimization, with fixed size steps (no line search)."""
         self.x = x
         self.opfunc = opfunc
-        self.b1 = b1
-        self.b2 = b2
         self.step_size = step_size
         self.n_corr = n_corr
-        self.c1 = c1
-        self.c2 = c2
-        self.max_ls_fevals = max_ls_fevals
-        self.t = 0
-        self.fevals = 0
         self.loss = None
         self.grad = None
         self.sk = []
         self.yk = []
-        self.g1 = np.zeros_like(self.x)
-        self.g2 = np.zeros_like(self.x)
-        self.lbfgs = True
 
     def step(self):
-        """Take an L-BFGS or Adam step, depending on whether a line search has failed yet. Returns
-        the new parameters and the loss after the step."""
-        self.t += 1
-
+        """Take an L-BFGS step. Returns the new parameters and the loss after the step."""
         if self.loss is None:
             self.loss, self.grad = self.opfunc(self.x)
-            self.g1[:] = self.b1*self.g1 + (1-self.b1)*self.grad
-            self.g2[:] = self.b2*self.g2 + (1-self.b2)*self.grad**2
-            self.fevals += 1
 
-        # Compute an L-BFGS step
-        if self.lbfgs:
-            p = -self.inv_hv(self.grad)
-            ss, loss, grad = self.line_search(p)
-            if ss is not None:
-                s = ss * p
-            else:
-                # Clear Adam momentum but use the accumulated second moment
-                self.lbfgs = False
-                self.g1[:] = (1-self.b1) * self.grad
-                logger.info('Line search failed. Switching to Adam steps.')
-
-        # Compute an Adam step. The Adam second moment is accumulated regardless of whether L-BFGS
-        # or Adam steps are being taken.
-        if not self.lbfgs:
-            ss = self.step_size * np.sqrt(1-self.b2**self.t) / (1-self.b1**self.t)
-            s = -ss * self.g1 / (np.sqrt(self.g2) + 1e-8)
-            loss, grad = self.opfunc(self.x + s)
-            self.fevals += 1
-            self.g1[:] = self.b1*self.g1 + (1-self.b1)*grad
-        self.g2[:] = self.b2*self.g2 + (1-self.b2)*grad**2
-
-        # Take the step
+        # Compute and take an L-BFGS step
+        s = -self.step_size * self.inv_hv(self.grad)
         self.x += s
 
         # Compute a curvature pair and store parameters for the next step
+        loss, grad = self.opfunc(self.x)
         y = grad - self.grad
         self.store_curvature_pair(s, y)
         self.loss, self.grad = loss, grad
+
         return self.x, loss
-
-    def line_search(self, p):
-        """A bracketing line search. Given a search direction p, returns an acceptable step size
-        (None on line search failure) and the loss and gradient at the last candidate point."""
-        fevals = 0
-        step_size, step_min, step_max = 1, 0, np.inf
-        loss, grad = None, None
-
-        while True:
-            if fevals == self.max_ls_fevals:
-                return None, loss, grad
-
-            # Compute loss and gradient at candidate point
-            loss, grad = self.opfunc(self.x + step_size * p)
-            fevals += 1
-            self.fevals += 1
-
-            phi_0 = dot(p, self.grad)
-            # Test the weak Wolfe curvature condition
-            if dot(p, grad) < self.c2 * phi_0:
-                step_min = step_size
-            # Test the Armijo condition but use the curvature information anyway if it fails
-            if loss > self.loss + self.c1 * step_size * phi_0:
-                step_max = step_size
-                self.store_curvature_pair(step_size * p, grad - self.grad)
-            # If both hold, accept the step
-            else:
-                break
-
-            # Compute new step size
-            if step_max < np.inf:
-                step_size = (step_min + step_max) / 2
-            else:
-                step_size *= 2
-
-        return step_size, loss, grad
 
     def store_curvature_pair(self, s, y):
         """Updates the L-BFGS memory with a new curvature pair."""
-        if self.lbfgs and dot(s, y) > 1e-4 * dot(s, s):
+        if dot(s, y) > 1e-10:
             self.sk.append(s)
             self.yk.append(y)
         if len(self.sk) > self.n_corr:
@@ -249,10 +175,7 @@ class Optimizer:
             size = new_x.shape[-2:]
         else:
             self.x = utils.resize(self.x, size)
-        self.sk, self.yk = [], []
-        self.loss, self.grad = None, None
-        self.g1 = utils.resize(self.g1, size)
-        self.g2 = np.maximum(utils.resize(self.g2, size, order=1), 0)
+        self.objective_changed()
         return self.x
 
     def objective_changed(self):
@@ -282,7 +205,6 @@ class StyleTransfer:
         self.content = None
         self.features = None
         self.grams = None
-        self.step_size = SetStepSize.default
         weights_shape = (len(self.model.layers()), len(SetWeights.loss_names))
         self.weights = pd.DataFrame(
             np.ones(weights_shape), self.model.layers(), SetWeights.loss_names, np.float32)
@@ -317,7 +239,7 @@ class StyleTransfer:
         self.s_grad_norms = {}
         self.t = 0
         assert self.input is not None, "No input image provided yet."
-        self.optimizer = Optimizer(self.input, self.opfunc, step_size=self.step_size)
+        self.optimizer = LBFGSOptimizer(self.input, self.opfunc)
 
     def start(self):
         if self.optimizer is None:
