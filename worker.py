@@ -244,15 +244,22 @@ class Optimizer:
     def resample(self, size, new_x=None):
         """Resamples the optimizer's internal state to a new HxW size. The L-BFGS memory is cleared
         and the Adam moment accumulators are resized."""
+        if new_x is not None:
+            self.x = new_x
+            size = new_x.shape[-2:]
+        else:
+            self.x = utils.resize(self.x, size)
         self.sk, self.yk = [], []
         self.loss, self.grad = None, None
         self.g1 = utils.resize(self.g1, size)
         self.g2 = np.maximum(utils.resize(self.g2, size, order=1), 0)
-        if new_x is not None:
-            self.x = new_x
-        else:
-            self.x = utils.resize(self.x, size)
         return self.x
+
+    def objective_changed(self):
+        """Advises the optimizer that the objective function has changed and that it should discard
+        internal state as appropriate."""
+        self.sk, self.yk = [], []
+        self.loss, self.grad = None, None
 
 
 def gram_matrix(x):
@@ -275,6 +282,7 @@ class StyleTransfer:
         self.content = None
         self.features = None
         self.grams = None
+        self.step_size = SetStepSize.default
         weights_shape = (len(self.model.layers()), len(SetWeights.loss_names))
         self.weights = pd.DataFrame(
             np.ones(weights_shape), self.model.layers(), SetWeights.loss_names, np.float32)
@@ -282,6 +290,10 @@ class StyleTransfer:
         self.optimizer = None
         self.c_grad_norms = {}
         self.s_grad_norms = {}
+
+    def objective_changed(self):
+        if self.optimizer is not None:
+            self.optimizer.objective_changed()
 
     def pause(self):
         self.is_running = False
@@ -305,7 +317,7 @@ class StyleTransfer:
         self.s_grad_norms = {}
         self.t = 0
         assert self.input is not None, "No input image provided yet."
-        self.optimizer = Optimizer(self.input, self.opfunc)
+        self.optimizer = Optimizer(self.input, self.opfunc, step_size=self.step_size)
 
     def start(self):
         if self.optimizer is None:
@@ -314,17 +326,20 @@ class StyleTransfer:
 
     def set_input(self, image):
         image = self.model.preprocess(image)
-        if self.input is None:
-            self.input = image
-        elif self.input.shape == image.shape:
+        if self.input is not None and self.input.shape == image.shape:
             self.input[:] = image
+            self.objective_changed()
+        elif self.optimizer is not None:
+            self.optimizer.resample(None, new_x=image)
         else:
-            self.input = self.optimizer.resample(size=None, new_x=image)
+            self.input = image
+            self.reset()
 
     def set_content(self, image):
         self.content = self.model.preprocess(image)
         features = self.model.forward(self.content)
         self.features = {k: v.copy() for k, v in features.items()}
+        self.objective_changed()
 
     def set_style(self, image):
         image = self.model.preprocess(image)
@@ -332,14 +347,18 @@ class StyleTransfer:
         self.grams = {}
         for layer, feat in features.items():
             self.grams[layer] = gram_matrix(feat)
+        self.objective_changed()
 
     def set_step_size(self, step_size):
-        """Sets the optimizer's gradient descent step size."""
-        self.optimizer.step_size = step_size
+        """Sets the optimizer's step size."""
+        self.step_size = step_size
+        if self.optimizer is not None:
+            self.optimizer.step_size = step_size
 
     def set_weights(self, weights, scalar_weights):
         self.weights = pd.DataFrame.from_dict(weights, dtype=np.float32)
         self.scalar_weights = scalar_weights
+        self.objective_changed()
 
     def opfunc(self, x, return_grad=True):
         """Calculates the objective function and its gradient."""

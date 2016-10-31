@@ -114,7 +114,11 @@ def process_params(app, msg):
         if params['size'] != max(app.input_arr.shape):
             new_size = utils.fit_into_square(app.input_arr.shape[:2], params['size'], True)
             content_image = app.content_image.resize(new_size[::-1], Image.LANCZOS)
-            msg_out = SetImages(new_size, SetImages.RESAMPLE, np.float32(content_image))
+            input_image = SetImages.RESAMPLE
+            if app.i == 0:
+                input_image = np.float32(np.random.uniform(0, 255, new_size + (3,)))
+                app.input_arr = input_image
+            msg_out = SetImages(new_size, input_image, np.float32(content_image))
             app.sock_out.send_pyobj(msg_out)
             send_websocket(app, dict(type='newSize', size=params['size']))
         app.weights = params['weights']
@@ -125,7 +129,7 @@ def process_params(app, msg):
         send_websocket(app, msg)
 
 
-async def init_arrays(app):
+def init_arrays(app):
     app.content_image = Image.open(str(MODULE_DIR / app.config['initial_content'])).convert('RGB')
     app.style_image = Image.open(str(MODULE_DIR / app.config['initial_style'])).convert('RGB')
     size = app.config.getint('initial_size')
@@ -136,6 +140,7 @@ async def init_arrays(app):
     w, h = content.size
 
     app.input_arr = np.float32(np.random.uniform(0, 255, (h, w, 3)))
+    app.i = 0
     msg = SetImages(None, app.input_arr, np.float32(content), np.float32(style))
     app.sock_out.send_pyobj(msg)
 
@@ -156,6 +161,7 @@ async def process_messages(app):
             else:
                 app.its_per_s = 0
                 true_its_per_s = 0
+            app.i = recv_msg.i
             app.last_it_time = it_time
 
             # Compute RMS difference of iterates
@@ -190,7 +196,7 @@ async def startup_tasks(app):
     app.last_it_time = 0
     app.its_per_s = 0
     app.params = {}
-    asyncio.ensure_future(init_arrays(app))
+    init_arrays(app)
     app.pm_future = asyncio.ensure_future(process_messages(app))
     app.worker_proc = subprocess.Popen([str(WORKER_PATH)])
 
