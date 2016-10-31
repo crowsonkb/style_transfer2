@@ -122,6 +122,7 @@ class LBFGSOptimizer:
         self.grad = None
         self.sk = []
         self.yk = []
+        self.syk = []
 
     def step(self):
         """Take an L-BFGS step. Returns the new parameters and the loss after the step."""
@@ -142,29 +143,31 @@ class LBFGSOptimizer:
 
     def store_curvature_pair(self, s, y):
         """Updates the L-BFGS memory with a new curvature pair."""
-        if dot(s, y) > 1e-10:
+        sy = dot(s, y)
+        if sy > 1e-10:
             self.sk.append(s)
             self.yk.append(y)
+            self.syk.append(sy)
         if len(self.sk) > self.n_corr:
-            self.sk, self.yk = self.sk[1:], self.yk[1:]
+            self.sk, self.yk, self.syk = self.sk[1:], self.yk[1:], self.syk[1:]
 
     def inv_hv(self, p):
         """Computes the product of a vector with an approximation of the inverse Hessian."""
         p = p.copy()
         alphas = []
-        for s, y in zip(reversed(self.sk), reversed(self.yk)):
-            alphas.append(dot(s, p) / dot(s, y))
+        for s, y, sy in zip(reversed(self.sk), reversed(self.yk), reversed(self.syk)):
+            alphas.append(dot(s, p) / sy)
             axpy(-alphas[-1], y, p)
 
         if len(self.sk) > 0:
-            s, y = self.sk[-1], self.yk[-1]
-            p *= dot(s, y) / dot(y, y)
+            sy, y = self.syk[-1], self.yk[-1]
+            p *= sy / dot(y, y)
         else:
             # With no curvature information, take a reasonably-scaled step
             p /= np.sqrt(dot(p, p) / p.size)
 
-        for s, y, alpha in zip(self.sk, self.yk, reversed(alphas)):
-            beta = dot(y, p) / dot(s, y)
+        for s, y, sy, alpha in zip(self.sk, self.yk, self.syk, reversed(alphas)):
+            beta = dot(y, p) / sy
             axpy(alpha - beta, s, p)
 
         return p
@@ -183,7 +186,7 @@ class LBFGSOptimizer:
     def objective_changed(self):
         """Advises the optimizer that the objective function has changed and that it should discard
         internal state as appropriate."""
-        self.sk, self.yk = [], []
+        self.sk, self.yk, self.syk = [], [], []
         self.loss, self.grad = None, None
 
 
