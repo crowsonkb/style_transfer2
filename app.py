@@ -173,7 +173,7 @@ async def process_messages(app):
             app.input_arr = recv_msg.image
 
         elif isinstance(recv_msg, Shutdown):
-            return
+            raise KeyboardInterrupt()
 
         else:
             logger.error('Unknown message type received over ZeroMQ.')
@@ -223,7 +223,11 @@ app = init()
 def main():
     """The main function."""
     utils.setup_logging()
-    web.run_app(app, host=app.config['http_host'], port=app.config['http_port'])
+    try:
+        web.run_app(app, host=app.config['http_host'], port=app.config['http_port'],
+                    shutdown_timeout=1)
+    except KeyboardInterrupt:
+        pass
 
 if __name__ == '__main__':
     main()
