@@ -109,42 +109,136 @@ class CaffeModel:
         return self.net.blobs['data'].diff
 
 
-class AdamOptimizer:
-    """An optimizer using the Adam algorithm for stochastic approximation. Given the parameters
-    array x, it takes scaled gradient descent steps when supplied with x's gradient. The step_size
-    value controls the maximum amount a parameter may change per step. b1 and b2 are Adam momentum
-    parameters which should not need to be changed from the default."""
-    def __init__(self, x, opfunc, step_size=SetStepSize.default, b1=0.9, b2=0.999):
+class Optimizer:
+    def __init__(self, x, opfunc, b1=0.9, b2=0.999, step_size=SetStepSize.default,
+                 n_corr=10, c1=1e-4, c2=0.9, max_ls_fevals=5):
+        """An optimizer that switches between the L-BFGS and Adam algorithms for function
+        minimization. It uses L-BFGS at first, then switches to Adam if a line search
+        should fail."""
         self.x = x
         self.opfunc = opfunc
-        self.step_size = step_size
         self.b1 = b1
         self.b2 = b2
+        self.step_size = step_size
+        self.n_corr = n_corr
+        self.c1 = c1
+        self.c2 = c2
+        self.max_ls_fevals = max_ls_fevals
         self.t = 0
-        self.g1 = np.zeros_like(x)
-        self.g2 = np.zeros_like(x)
+        self.fevals = 0
+        self.loss = None
+        self.grad = None
+        self.sk = []
+        self.yk = []
+        self.g1 = np.zeros_like(self.x)
+        self.g2 = np.zeros_like(self.x)
+        self.lbfgs = True
 
     def step(self):
-        """Takes a scaled gradient descent step. Updates x in place, and returns the new value."""
         self.t += 1
-        loss, grad = self.opfunc(self.x)
 
-        self.g1[:] = self.b1*self.g1 + (1-self.b1)*grad
+        if self.loss is None:
+            self.loss, self.grad = self.opfunc(self.x)
+            self.g1[:] = self.b1*self.g1 + (1-self.b1)*self.grad
+            self.g2[:] = self.b2*self.g2 + (1-self.b2)*self.grad**2
+            self.fevals += 1
+
+        if self.lbfgs:
+            p = -self.inv_hv(self.grad)
+            ss, loss, grad = self.line_search(p)
+            if ss is not None:
+                s = ss * p
+            else:
+                self.lbfgs = False
+                self.g1[:] = (1-self.b1) * self.grad
+                logger.info('Line search failed. Switching to Adam steps.')
+
+        if not self.lbfgs:
+            ss = self.step_size * np.sqrt(1-self.b2**self.t) / (1-self.b1**self.t)
+            s = -ss * self.g1 / (np.sqrt(self.g2) + 1e-8)
+            loss, grad = self.opfunc(self.x + s)
+            self.fevals += 1
+            self.g1[:] = self.b1*self.g1 + (1-self.b1)*grad
         self.g2[:] = self.b2*self.g2 + (1-self.b2)*grad**2
-        ss = self.step_size * np.sqrt(1-self.b2**self.t) / (1-self.b1**self.t)
 
-        self.x -= ss * self.g1 / (np.sqrt(self.g2) + 1e-8)
+        self.x += s
+
+        y = grad - self.grad
+        self.store_curvature_pair(s, y)
+        self.loss, self.grad = loss, grad
         return self.x, loss
 
-    def resample(self, size, new_x=None):
-        """Resamples the optimizer's internal state on the last two axes to a new HxW size."""
-        if new_x is not None:
-            self.x = new_x
-            size = self.x.shape[2:]
+    def line_search(self, p):
+        """A bracketing line search."""
+        fevals = 0
+        step_size, step_min, step_max = 1, 0, np.inf
+        loss, grad = None, None
+
+        while True:
+            if fevals == self.max_ls_fevals:
+                return None, loss, grad
+
+            loss, grad = self.opfunc(self.x + step_size * p)
+            fevals += 1
+            self.fevals += 1
+
+            phi_0 = dot(p, self.grad)
+            # Test the weak Wolfe curvature condition
+            if dot(p, grad) < self.c2 * phi_0:
+                step_min = step_size
+            # Test the Armijo condition but use the curvature information anyway if it fails
+            if loss > self.loss + self.c1 * step_size * phi_0:
+                step_max = step_size
+                self.store_curvature_pair(step_size * p, grad - self.grad)
+            # If both hold, accept the step
+            else:
+                break
+
+            # Compute new step size
+            if step_max < np.inf:
+                step_size = (step_min + step_max) / 2
+            else:
+                step_size *= 2
+
+        return step_size, loss, grad
+
+    def store_curvature_pair(self, s, y):
+        """Updates the L-BFGS memory with a new curvature pair."""
+        if self.lbfgs and dot(s, y) > 1e-4 * dot(s, s):
+            self.sk.append(s)
+            self.yk.append(y)
+        if len(self.sk) > self.n_corr:
+            self.sk, self.yk = self.sk[1:], self.yk[1:]
+
+    def inv_hv(self, p):
+        """Computes the product of a vector with an approximation of the inverse Hessian."""
+        p = p.copy()
+        alphas = []
+        for s, y in zip(reversed(self.sk), reversed(self.yk)):
+            alphas.append(dot(s, p) / dot(s, y))
+            axpy(-alphas[-1], y, p)
+
+        if len(self.sk) > 0:
+            s, y = self.sk[-1], self.yk[-1]
+            p *= dot(s, y) / dot(y, y)
         else:
-            self.x = utils.resize(self.x, size)
+            p /= np.sqrt(dot(p, p) / p.size)
+
+        for s, y, alpha in zip(self.sk, self.yk, reversed(alphas)):
+            beta = dot(y, p) / dot(s, y)
+            axpy(alpha - beta, s, p)
+
+        return p
+
+    def resample(self, size, new_x=None):
+        self.sk, self.yk = [], []
+        self.loss, self.grad = None, None
         self.g1 = utils.resize(self.g1, size)
         self.g2 = np.maximum(utils.resize(self.g2, size, order=1), 0)
+        if new_x is not None:
+            self.x = new_x
+        else:
+            self.x = utils.resize(self.x, size)
         return self.x
 
 
@@ -160,6 +254,7 @@ class StyleTransfer:
     def __init__(self, model):
         self.model = model
         self.is_running = False
+        self.t = 0
         self.input = None
         self.content = None
         self.features = None
@@ -176,17 +271,24 @@ class StyleTransfer:
         self.is_running = False
 
     def resample_input(self, size):
-        self.input = self.optimizer.resample(size)
+        if self.input is not None and self.optimizer is not None:
+            self.input = self.optimizer.resample(size)
+        else:
+            self.input = np.zeros((1, 3) + size, np.float32)
 
     def resample_content(self, size):
-        self.content = utils.resize(self.content, size)
+        if self.content is not None:
+            self.content = utils.resize(self.content, size)
+        else:
+            self.content = np.zeros((1, 3) + size, np.float32)
         features = self.model.forward(self.content)
         self.features = {k: v.copy() for k, v in features.items()}
 
     def reset(self):
         self.c_grad_norms = {}
         self.s_grad_norms = {}
-        self.optimizer = AdamOptimizer(self.input, self.opfunc)
+        self.t = 0
+        self.optimizer = Optimizer(self.input, self.opfunc)
 
     def start(self):
         if self.optimizer is None:
@@ -269,6 +371,7 @@ class StyleTransfer:
 
     def step(self):
         """Take a gradient descent step."""
+        self.t += 1
         x, loss = self.optimizer.step()
         return self.model.deprocess(x), loss
 
@@ -293,7 +396,7 @@ class Worker:
                         self.process_message(msg)
                     except zmq.ZMQError:
                         image, loss = self.transfer.step()
-                        new_msg = Iterate(image, loss, self.transfer.optimizer.t)
+                        new_msg = Iterate(image, loss, self.transfer.t)
                         self.sock_out.send_pyobj(new_msg)
                     continue
                 msg = self.sock_in.recv_pyobj()
