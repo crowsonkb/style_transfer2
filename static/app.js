@@ -22,18 +22,22 @@ function upload(slot) {
     reader.readAsDataURL($("#file-selector")[0].files[0])
 }
 
+function refreshImage() {
+    $("#output-image").attr("src", "/output.png");
+}
+
 $(document).ready(function() {
     // Wait one second after loading to refresh output image
     var update_every = 1000;
     $("#output-image").on("load", function() {
-        setTimeout(function() {
-            $("#output-image").attr("src", "/output.png");
-        }, update_every);
+        setTimeout(refreshImage, update_every);
     });
-    $("#output-image").attr("src", "/output.png");
+    refreshImage();
 
     function ws_connect() {
         ws = new WebSocket("ws://" + window.location.host + "/websocket");
+
+        ws.onopen = refreshImage;
 
         ws.onmessage = function(e) {
             var msg = JSON.parse(e.data);
@@ -54,7 +58,7 @@ $(document).ready(function() {
             }
         };
 
-        ws.onclose = function(e) { ws_connect(); };
+        ws.onclose = ws_connect;
     }
     ws_connect();
 });
