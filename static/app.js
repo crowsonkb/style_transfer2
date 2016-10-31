@@ -71,6 +71,15 @@ $(document).ready(function() {
                 $("#output-image").attr("width", msg.width);
                 $("#output-image").attr("height", msg.height);
                 break;
+            case "state":  // misc things on the page that aren't editable
+                if (msg.running) {
+                    $("#start").text("Pause");
+                    isStart = false;
+                } else {
+                    $("#start").text("Start");
+                    isStart = true;
+                }
+                break;
             }
         };
 

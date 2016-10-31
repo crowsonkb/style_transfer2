@@ -72,13 +72,15 @@ async def upload(request):
 
 
 async def websocket(request):
+    app = request.app
     ws = web.WebSocketResponse()
     await ws.prepare(request)
     request.app.wss.append(ws)
 
     send_websocket(app, dict(type='newParams', params=get_params(app)))
-    h, w = request.app.input_arr.shape[:2]
+    h, w = app.input_arr.shape[:2]
     send_websocket(app, dict(type='newSize', height=h, width=w))
+    send_websocket(app, dict(type='state', running=app.running))
 
     async for msg in ws:
         if msg.type == aiohttp.WSMsgType.TEXT:
@@ -86,15 +88,17 @@ async def websocket(request):
             if 'type' not in msg:
                 logger.error('Received an WebSocket message of unknown type.')
             if msg['type'] == 'applyParams':
-                process_params(request.app, msg)
+                process_params(app, msg)
             elif msg['type'] == 'pause':
-                request.app.sock_out.send_pyobj(PauseIteration())
+                app.sock_out.send_pyobj(PauseIteration())
+                app.running = False
             elif msg['type'] == 'reset':
-                image = np.float32(np.random.uniform(0, 255, request.app.input_arr.shape))
-                request.app.input_arr = image
-                request.app.sock_out.send_pyobj(SetImages(input_image=image, reset_state=True))
+                image = np.float32(np.random.uniform(0, 255, app.input_arr.shape))
+                app.input_arr = image
+                app.sock_out.send_pyobj(SetImages(input_image=image, reset_state=True))
             elif msg['type'] == 'start':
-                request.app.sock_out.send_pyobj(StartIteration())
+                app.sock_out.send_pyobj(StartIteration())
+                app.running = True
             else:
                 logger.error('Received an WebSocket message of unknown type.')
         else:
@@ -198,6 +202,7 @@ async def startup_tasks(app):
     app.sock_in.bind(app.config['app_socket'])
     app.sock_out.connect(app.config['worker_socket'])
     app.wss = []
+    app.running = False
     app.last_it_time = 0
     app.its_per_s = 0
     app.params = {}
