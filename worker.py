@@ -89,7 +89,6 @@ class CaffeModel:
         preprocessed image. They will be overwritten on the next call to forward()."""
         if layers is None:
             layers = self.layers()
-        logger.debug('%s', layers)
         self.net.blobs['data'].reshape(*image.shape)
         return self.net.forward(data=image, blobs=list(layers))
 
