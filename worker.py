@@ -78,7 +78,7 @@ class CaffeModel:
     def deprocess(self, image):
         """Reverses the action of preprocess()."""
         arr = (image.squeeze()[::1] + self.mean).transpose((1, 2, 0))
-        return np.ascontiguousarray(arr)
+        return arr
 
     def layers(self):
         """Returns the layer names of the network."""
