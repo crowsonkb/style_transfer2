@@ -58,9 +58,9 @@ class StartIteration:
     pass
 
 
-# class PauseIteration:
-#     """Signals the worker to pause iteration."""
-#     pass
+class PauseIteration:
+    """Signals the worker to pause iteration."""
+    pass
 
 
 class Iterate:

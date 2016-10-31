@@ -82,10 +82,14 @@ async def websocket(request):
                 logger.error('Received an WebSocket message of unknown type.')
             if msg['type'] == 'applyParams':
                 process_params(request.app, msg)
+            elif msg['type'] == 'pause':
+                request.app.sock_out.send_pyobj(PauseIteration())
             elif msg['type'] == 'reset':
                 image = np.float32(np.random.uniform(0, 255, request.app.input_arr.shape))
                 request.app.input_arr = image
                 request.app.sock_out.send_pyobj(SetImages(input_image=image, reset_state=True))
+            elif msg['type'] == 'start':
+                request.app.sock_out.send_pyobj(StartIteration())
             else:
                 logger.error('Received an WebSocket message of unknown type.')
         else:
@@ -138,8 +142,6 @@ async def init_arrays(app):
     with open(str(MODULE_DIR / app.config['initial_weights'])) as w:
         app.params['weights'] = yaml.load(w)
     app.sock_out.send_pyobj(SetWeights(*app.params['weights']))
-
-    app.sock_out.send_pyobj(StartIteration())
 
 
 async def process_messages(app):

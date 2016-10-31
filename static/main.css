@@ -6,11 +6,26 @@ body {
 button {
     margin-top: 4px;
     margin-bottom: 4px;
+    width: 127px;
 }
+
+input {
+    margin-top: 2px;
+    margin-bottom: 2px;
+}
+
 #content {
     margin: 16px;
 }
 
+#iterate-stats {
+    display: none;
+}
+
 #output-image {
     image-rendering: -webkit-optimize-contrast;
+}
+
+#resize-to {
+    width: 60px;
 }

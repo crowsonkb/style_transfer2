@@ -12,6 +12,19 @@ function reset() {
     ws.send(JSON.stringify({type: "reset"}));
 }
 
+var isStart = true;
+function start() {
+    if (isStart) {
+        $("#start").text("Pause");
+        isStart = false;
+        ws.send(JSON.stringify({type: "start"}));
+    } else {
+        $("#start").text("Start");
+        isStart = true;
+        ws.send(JSON.stringify({type: "pause"}));
+    }
+}
+
 function upload(slot) {
     var reader = new FileReader();
     reader.onload = function(e) {
@@ -44,6 +57,7 @@ $(document).ready(function() {
 
             switch (msg.type) {
             case "iterateInfo":
+                $("#iterate-stats").css("display", "block");
                 $("#iterate").text(msg.i);
                 $("#loss").text(msg.loss.toPrecision(4));
                 $("#step-size").text(msg.stepSize.toPrecision(3));

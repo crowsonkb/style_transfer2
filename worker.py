@@ -172,6 +172,9 @@ class StyleTransfer:
         self.c_grad_norms = {}
         self.s_grad_norms = {}
 
+    def pause(self):
+        self.is_running = False
+
     def resample_input(self, size):
         self.input = self.optimizer.resample(size)
 
@@ -180,10 +183,14 @@ class StyleTransfer:
         features = self.model.forward(self.content)
         self.features = {k: v.copy() for k, v in features.items()}
 
-    def start(self):
+    def reset(self):
         self.c_grad_norms = {}
         self.s_grad_norms = {}
         self.optimizer = AdamOptimizer(self.input, self.opfunc)
+
+    def start(self):
+        if self.optimizer is None:
+            self.reset()
         self.is_running = True
 
     def set_input(self, image):
@@ -314,7 +321,7 @@ class Worker:
                 self.transfer.set_style(msg.style_image)
 
             if msg.reset_state:
-                self.transfer.start()
+                self.transfer.reset()
 
         elif isinstance(msg, SetStepSize):
             self.transfer.set_step_size(msg.step_size)
@@ -327,6 +334,9 @@ class Worker:
 
         elif isinstance(msg, StartIteration):
             self.transfer.start()
+
+        elif isinstance(msg, PauseIteration):
+            self.transfer.pause()
 
         else:
             logger.error('Invalid message received over ZeroMQ.')

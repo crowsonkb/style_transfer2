@@ -6,14 +6,20 @@
 {% block content %}
     <h1>Style Transfer</h1>
     <img src="/output.png" id="output-image"><br>
-    Iterate <span id="iterate">[]</span>, SNR: <span id="loss">[]</span> dB, step size: <span id="step-size">[]</span><br>
-    <span id="its-per-s">[]</span> its/s<br><br>
+    <button id="start" onclick="start()">Start</button><br>
+
+    <div id="iterate-stats">Iterate <span id="iterate">[]</span>, SNR: <span id="loss">[]</span> dB, step size: <span id="step-size">[]</span><br>
+    <span id="its-per-s">[]</span> its/s</div><br>
+
     Set images:<br>
     <input type="file" id="file-selector" name="file-selector"><br>
+
     Limit to: <input type="number" id="resize-to" size="5"> px<br>
-    <button onclick="upload('content')">Set content to this</button>
-    <button onclick="upload('style')">Set style to this</button>
-    <button onclick="reset()">Reset state</button><br><br>
+
+    <button onclick="upload('content')">Set content</button>
+    <button onclick="upload('style')">Set style</button>
+    <button onclick="reset()">Reset image</button><br><br>
+
     Parameters:<br>
     <textarea id="params" rows="10" cols="60"></textarea><br>
     <button onclick="applyParams()">Apply params</button><br>
