@@ -84,11 +84,14 @@ class CaffeModel:
         """Returns the layer names of the network."""
         return [layer for layer in self.net.blobs.keys() if layer.find('_split_') == -1]
 
-    def forward(self, image):
+    def forward(self, image, layers=None):
         """Runs the network forward, returning an OrderedDict of feature maps of the given
         preprocessed image. They will be overwritten on the next call to forward()."""
+        if layers is None:
+            layers = self.layers()
+        logger.debug('%s', layers)
         self.net.blobs['data'].reshape(*image.shape)
-        return self.net.forward(data=image, blobs=self.layers())
+        return self.net.forward(data=image, blobs=list(layers))
 
     def backward(self, diffs):
         """Runs the network backward, adding each layer gradient in diffs to that layer. Returns
@@ -298,7 +301,7 @@ class StyleTransfer:
         layers = self.weights.index[abs(nonzeros.sum(axis=1)) > 1e-15]
 
         # Compute the loss and gradient at each of those layers
-        current_feats = self.model.forward(x)
+        current_feats = self.model.forward(x, layers)
         loss = 0
         diffs = {}
         for layer in layers:
