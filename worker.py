@@ -113,8 +113,8 @@ class Optimizer:
     def __init__(self, x, opfunc, b1=0.9, b2=0.999, step_size=SetStepSize.default,
                  n_corr=10, c1=1e-4, c2=0.9, max_ls_fevals=5):
         """An optimizer that switches between the L-BFGS and Adam algorithms for function
-        minimization. It uses L-BFGS at first, then switches to Adam if a line search
-        should fail."""
+        minimization. It uses L-BFGS at first, then switches to Adam once a line search
+        has failed."""
         self.x = x
         self.opfunc = opfunc
         self.b1 = b1
@@ -135,6 +135,8 @@ class Optimizer:
         self.lbfgs = True
 
     def step(self):
+        """Take an L-BFGS or Adam step, depending on whether a line search has failed yet. Returns
+        the new parameters and the loss after the step."""
         self.t += 1
 
         if self.loss is None:
@@ -143,16 +145,20 @@ class Optimizer:
             self.g2[:] = self.b2*self.g2 + (1-self.b2)*self.grad**2
             self.fevals += 1
 
+        # Compute an L-BFGS step
         if self.lbfgs:
             p = -self.inv_hv(self.grad)
             ss, loss, grad = self.line_search(p)
             if ss is not None:
                 s = ss * p
             else:
+                # Clear Adam momentum but use the accumulated second moment
                 self.lbfgs = False
                 self.g1[:] = (1-self.b1) * self.grad
                 logger.info('Line search failed. Switching to Adam steps.')
 
+        # Compute an Adam step. The Adam second moment is accumulated regardless of whether L-BFGS
+        # or Adam steps are being taken.
         if not self.lbfgs:
             ss = self.step_size * np.sqrt(1-self.b2**self.t) / (1-self.b1**self.t)
             s = -ss * self.g1 / (np.sqrt(self.g2) + 1e-8)
@@ -161,15 +167,18 @@ class Optimizer:
             self.g1[:] = self.b1*self.g1 + (1-self.b1)*grad
         self.g2[:] = self.b2*self.g2 + (1-self.b2)*grad**2
 
+        # Take the step
         self.x += s
 
+        # Compute a curvature pair and store parameters for the next step
         y = grad - self.grad
         self.store_curvature_pair(s, y)
         self.loss, self.grad = loss, grad
         return self.x, loss
 
     def line_search(self, p):
-        """A bracketing line search."""
+        """A bracketing line search. Given a search direction p, returns an acceptable step size
+        (None on line search failure) and the loss and gradient at the last candidate point."""
         fevals = 0
         step_size, step_min, step_max = 1, 0, np.inf
         loss, grad = None, None
@@ -178,6 +187,7 @@ class Optimizer:
             if fevals == self.max_ls_fevals:
                 return None, loss, grad
 
+            # Compute loss and gradient at candidate point
             loss, grad = self.opfunc(self.x + step_size * p)
             fevals += 1
             self.fevals += 1
@@ -222,6 +232,7 @@ class Optimizer:
             s, y = self.sk[-1], self.yk[-1]
             p *= dot(s, y) / dot(y, y)
         else:
+            # With no curvature information, take a reasonably-scaled step
             p /= np.sqrt(dot(p, p) / p.size)
 
         for s, y, alpha in zip(self.sk, self.yk, reversed(alphas)):
@@ -231,6 +242,8 @@ class Optimizer:
         return p
 
     def resample(self, size, new_x=None):
+        """Resamples the optimizer's internal state to a new HxW size. The L-BFGS memory is cleared
+        and the Adam moment accumulators are resized."""
         self.sk, self.yk = [], []
         self.loss, self.grad = None, None
         self.g1 = utils.resize(self.g1, size)
@@ -251,6 +264,9 @@ def gram_matrix(x):
 
 
 class StyleTransfer:
+    """The class which performs image stylization. StyleTransfer calculates and manages state
+    related to an objective function (StyleTransfer.opfunc()) which it minimizes using an Optimizer
+    instance."""
     def __init__(self, model):
         self.model = model
         self.is_running = False
@@ -288,6 +304,7 @@ class StyleTransfer:
         self.c_grad_norms = {}
         self.s_grad_norms = {}
         self.t = 0
+        assert self.input is not None, "No input image provided yet."
         self.optimizer = Optimizer(self.input, self.opfunc)
 
     def start(self):
@@ -317,6 +334,7 @@ class StyleTransfer:
             self.grams[layer] = gram_matrix(feat)
 
     def set_step_size(self, step_size):
+        """Sets the optimizer's gradient descent step size."""
         self.optimizer.step_size = step_size
 
     def set_weights(self, weights, scalar_weights):
@@ -324,6 +342,7 @@ class StyleTransfer:
         self.scalar_weights = scalar_weights
 
     def opfunc(self, x, return_grad=True):
+        """Calculates the objective function and its gradient."""
         # Get list of layers to provide gradients to
         nonzeros = abs(self.weights) > 1e-15
         layers = self.weights.index[abs(nonzeros.sum(axis=1)) > 1e-15]
