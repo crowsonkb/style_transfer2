@@ -9,6 +9,7 @@ import sys
 
 import numpy as np
 import pandas as pd
+from scipy.linalg import blas
 import zmq
 
 from messages import *
@@ -24,6 +25,21 @@ logger = logging.getLogger(__name__)
 caffe_import_msg = '''
 ImportError: Caffe was not found in PYTHONPATH. Please edit config.ini to
 contain the line "caffe_path = <path to compiled Caffe>."'''
+
+
+# pylint: disable=no-member
+def dot(x, y):
+    """Returns the dot product of two float32 arrays with the same shape."""
+    return blas.sdot(x.ravel(), y.ravel())
+
+
+# pylint: disable=no-member
+def axpy(a, x, y):
+    """Sets y = a*x + y for float a and float32 arrays x, y and returns y."""
+    y_ = blas.saxpy(x.ravel(), y.ravel(), a=a).reshape(y.shape)
+    if y is not y_:
+        y[:] = y_
+    return y
 
 
 class CaffeModel:
@@ -225,11 +241,11 @@ class StyleTransfer:
                 _, n, mh, mw = current_feats[layer].shape
                 gram_diff = gram_matrix(current_feats[layer]) - self.grams[layer]
                 feat = current_feats[layer].reshape((n, mh * mw))
-                s_grad = 2 * np.dot(gram_diff, feat).reshape((1, n, mh, mw)) / feat.size
+                s_grad = blas.ssymm(2 / feat.size, gram_diff, feat).reshape((1, n, mh, mw))
                 if layer not in self.s_grad_norms:
                     self.s_grad_norms[layer] = np.sqrt(np.mean(s_grad**2))
                 loss += sw * np.mean(gram_diff**2) / self.s_grad_norms[layer]
-                diffs[layer] += sw * s_grad / self.s_grad_norms[layer]
+                axpy(sw / self.s_grad_norms[layer], s_grad, diffs[layer])
 
         # Get the total variation loss and gradient
         tv_loss, tv_grad = utils.tv_norm(x / 255)
