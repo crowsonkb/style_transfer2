@@ -22,10 +22,6 @@ input {
     display: none;
 }
 
-#output-image {
-    image-rendering: -webkit-optimize-contrast;
-}
-
 #resize-to {
     width: 60px;
 }
