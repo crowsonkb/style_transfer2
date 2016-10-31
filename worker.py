@@ -30,13 +30,15 @@ contain the line "caffe_path = <path to compiled Caffe>."'''
 # pylint: disable=no-member
 def dot(x, y):
     """Returns the dot product of two float32 arrays with the same shape."""
-    return blas.sdot(x.ravel(), y.ravel())
+    x, y = x.ravel(), y.ravel()
+    return blas.sdot(x, y)
 
 
 # pylint: disable=no-member
 def axpy(a, x, y):
     """Sets y = a*x + y for float a and float32 arrays x, y and returns y."""
-    y_ = blas.saxpy(x.ravel(), y.ravel(), a=a).reshape(y.shape)
+    x_, y_ = x.ravel(), y.ravel()
+    y_ = blas.saxpy(x_, y_, a=a).reshape(y.shape)
     if y is not y_:
         y[:] = y_
     return y
