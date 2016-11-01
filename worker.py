@@ -29,12 +29,9 @@ contain the line "caffe_path = <path to compiled Caffe>."'''
 
 class CaffeModel:
     """A Caffe neural network model."""
-    models_path = MODULE_DIR / 'models'
-    model_path = models_path / 'vgg19.prototxt'
-    weights_path = models_path / 'vgg19.caffemodel'
     mean = np.float32((123.68, 116.779, 103.939)).reshape((3, 1, 1))
 
-    def __init__(self, gpu=-1):
+    def __init__(self, prototxt, caffemodel, gpu=-1):
         # Set environment variables before the first import of caffe, then import it
         logger.info('Initializing Caffe.')
         os.environ['GLOG_minloglevel'] = '1'
@@ -50,7 +47,7 @@ class CaffeModel:
             print(caffe_import_msg, file=sys.stderr)
             sys.exit(2)
 
-        self.net = caffe.Net(str(self.model_path), 1, weights=str(self.weights_path))
+        self.net = caffe.Net(str(prototxt), 1, weights=str(caffemodel))
         logger.info('Caffe initialized.')
 
     def preprocess(self, image):
@@ -269,8 +266,12 @@ class Worker:
         self.sock_out = ctx.socket(zmq.PUSH)
         self.sock_in.bind(config['worker_socket'])
         self.sock_out.connect(config['app_socket'])
+
+        prototxt = MODULE_DIR / config['prototxt']
+        caffemodel = MODULE_DIR / config['caffemodel']
         gpu = config.getint('gpu', fallback=-1)
-        model = CaffeModel(gpu)
+        model = CaffeModel(prototxt, caffemodel, gpu)
+
         self.transfer = StyleTransfer(model)
 
     def run(self):
