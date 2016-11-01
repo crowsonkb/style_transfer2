@@ -1,3 +1,4 @@
-- content: {conv4_2: 0.0667}
+- content: {conv4_2: 0.08}
   style: {conv1_1: 1, conv2_1: 1, conv3_1: 1, conv4_1: 1}
-- {tv: 10, p: 0, p_power: 6}
+  deepdream: {}
+- {p: 0, p_power: 6, tv: 5}
