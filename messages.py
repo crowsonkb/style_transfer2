@@ -22,15 +22,22 @@ class SetImages:
 
 
 class SetOptimizer:
-    """A request from the app to the worker to set the optimizer."""
-    def __init__(self, optimizer):
+    """A request from the app to the worker to set the optimizer type and optionally step size.
+    Step sizes will be taken from the per-optimizer defaults in this message type if not
+    specified."""
+    optimizer_types = ('adam', 'lbfgs')
+    step_sizes = {'adam': 10, 'lbfgs': 1}
+
+    def __init__(self, optimizer, step_size=None):
         self.optimizer = optimizer
+        if not step_size:
+            step_size = self.step_sizes[optimizer]
+        self.step_size = step_size
 
 
 class SetStepSize:
     """A request from the app to the worker to set the optimizer's step size (learning rate)."""
-    default_adam = 10
-    default_lbfgs = 1
+
 
     def __init__(self, step_size):
         self.step_size = step_size

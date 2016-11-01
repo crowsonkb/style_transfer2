@@ -133,7 +133,7 @@ def process_params(app, msg):
             app.sock_out.send_pyobj(msg_out)
             send_websocket(app, dict(type='newSize', height=new_size[0], width=new_size[1]))
 
-        app.sock_out.send_pyobj(SetOptimizer(params['optimizer']))
+        app.sock_out.send_pyobj(SetOptimizer(params['optimizer'], params['optimizer_step_size']))
         app.sock_out.send_pyobj(SetWeights(*params['weights']))
 
         app.params = params
@@ -149,6 +149,7 @@ def init_params(app):
 
     app.params['size'] = size
     app.params['optimizer'] = 'lbfgs'
+    app.params['optimizer_step_size'] = SetOptimizer.step_sizes['lbfgs']
     with open(str(MODULE_DIR / app.config['initial_weights'])) as w:
         app.params['weights'] = yaml.load(w)
 

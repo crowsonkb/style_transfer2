@@ -123,6 +123,7 @@ class StyleTransfer:
         self.params = {w: 1 for w in SetWeights.scalar_loss_names}
         self.optimizer = None
         self.optimizer_cls = optimizers.LBFGSOptimizer
+        self.step_size = SetOptimizer.step_sizes['lbfgs']
         self.c_grad_norms = {}
         self.s_grad_norms = {}
 
@@ -154,7 +155,7 @@ class StyleTransfer:
         self.s_grad_norms = {}
         self.t = 0
         assert self.input is not None, "No input image provided yet."
-        self.optimizer = self.optimizer_cls(self.input, self.opfunc)
+        self.optimizer = self.optimizer_cls(self.input, self.opfunc, step_size=self.step_size)
 
     def start(self):
         if self.optimizer is None:
@@ -186,11 +187,11 @@ class StyleTransfer:
             self.grams[layer] = gram_matrix(feat)
         self.objective_changed()
 
-    # def set_step_size(self, step_size):
-    #     """Sets the optimizer's step size."""
-    #     self.step_size = step_size
-    #     if self.optimizer is not None:
-    #         self.optimizer.step_size = step_size
+    def set_step_size(self, step_size):
+        """Sets the optimizer's step size."""
+        self.step_size = step_size
+        if self.optimizer is not None:
+            self.optimizer.step_size = step_size
 
     def set_weights(self, weights, params):
         self.weights = pd.DataFrame.from_dict(weights, dtype=np.float32)
@@ -312,8 +313,8 @@ class Worker:
             if not isinstance(self.transfer.optimizer, classes[msg.optimizer]):
                 self.transfer.reset()
 
-        # elif isinstance(msg, SetStepSize):
-        #     self.transfer.set_step_size(msg.step_size)
+        elif isinstance(msg, SetStepSize):
+            self.transfer.set_step_size(msg.step_size)
 
         elif isinstance(msg, SetWeights):
             self.transfer.set_weights(msg.weights, msg.params)

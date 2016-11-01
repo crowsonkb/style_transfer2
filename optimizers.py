@@ -9,7 +9,7 @@ class AdamOptimizer:
     array x, it takes scaled gradient descent steps when supplied with x's gradient. The step_size
     value controls the maximum amount a parameter may change per step. b1 and b2 are Adam momentum
     parameters which should not need to be changed from the default."""
-    def __init__(self, x, opfunc, step_size=SetStepSize.default_adam, b1=0.9, b2=0.999):
+    def __init__(self, x, opfunc, step_size=1, b1=0.9, b2=0.999):
         self.x = x
         self.opfunc = opfunc
         self.step_size = step_size
@@ -49,7 +49,7 @@ class AdamOptimizer:
 
 
 class LBFGSOptimizer:
-    def __init__(self, x, opfunc, step_size=SetStepSize.default_lbfgs, n_corr=10):
+    def __init__(self, x, opfunc, step_size=1, n_corr=10):
         """L-BFGS for function minimization, with fixed size steps (no line search)."""
         self.x = x
         self.opfunc = opfunc
