@@ -240,7 +240,7 @@ class StyleTransfer:
                 diffs[layer] += -dw * d_grad / self.norms['d'][layer]
 
         # Get the total variation loss and gradient
-        tv_loss, tv_grad = utils.tv_norm(x / 255)
+        tv_loss, tv_grad = utils.tv_norm(x / 255, self.params['tv_power'])
         loss += self.params['tv'] * tv_loss
 
         p_loss, p_grad = utils.p_norm(x / 255, self.params['p_power'])
