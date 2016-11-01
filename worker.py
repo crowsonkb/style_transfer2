@@ -32,6 +32,9 @@ class CaffeModel:
     mean = np.float32((123.68, 116.779, 103.939)).reshape((3, 1, 1))
 
     def __init__(self, prototxt, caffemodel, gpu=-1):
+        self.prototxt = str(prototxt)
+        self.caffemodel = str(caffemodel)
+
         # Set environment variables before the first import of caffe, then import it
         logger.info('Initializing Caffe.')
         os.environ['GLOG_minloglevel'] = '1'
@@ -47,8 +50,12 @@ class CaffeModel:
             print(caffe_import_msg, file=sys.stderr)
             sys.exit(2)
 
-        self.net = caffe.Net(str(prototxt), 1, weights=str(caffemodel))
+        self.reload_net()
         logger.info('Caffe initialized.')
+
+    def reload_net(self):
+        import caffe
+        self.net = caffe.Net(self.prototxt, 1, weights=self.caffemodel)
 
     def preprocess(self, image):
         """Preprocesses an input image for use in the network."""
@@ -69,6 +76,8 @@ class CaffeModel:
         preprocessed image. They will be overwritten on the next call to forward()."""
         if layers is None:
             layers = self.layers()
+        # if np.prod(self.net.blobs['data'].data.shape) > np.prod(image.shape):
+        #     self.reload_net()
         self.net.blobs['data'].reshape(*image.shape)
         return self.net.forward(data=image, blobs=list(layers))
 
