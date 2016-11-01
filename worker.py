@@ -124,8 +124,7 @@ class StyleTransfer:
         self.optimizer = None
         self.optimizer_cls = optimizers.LBFGSOptimizer
         self.step_size = SetOptimizer.step_sizes['lbfgs']
-        self.c_grad_norms = {}
-        self.s_grad_norms = {}
+        self.norms = {k: {} for k in 'cds'}
 
     def objective_changed(self):
         if self.optimizer is not None:
@@ -151,8 +150,7 @@ class StyleTransfer:
         self.objective_changed()
 
     def reset(self):
-        self.c_grad_norms = {}
-        self.s_grad_norms = {}
+        self.norms = {k: {} for k in self.norms}
         self.t = 0
         assert self.input is not None, "No input image provided yet."
         self.optimizer = self.optimizer_cls(self.input, self.opfunc, step_size=self.step_size)
@@ -209,17 +207,18 @@ class StyleTransfer:
         loss = 0
         diffs = {}
         for layer in layers:
-            cw, sw = self.weights['content'][layer], self.weights['style'][layer]
+            w = self.weights
+            cw, sw, dw = w['content'][layer], w['style'][layer], w['deepdream'][layer]
             diffs[layer] = np.zeros_like(self.features[layer])
 
             # Content gradient
             if abs(cw) > 1e-15:
                 c_grad = current_feats[layer] - self.features[layer]
                 c_grad *= 2 / c_grad.size
-                if layer not in self.c_grad_norms:
-                    self.c_grad_norms[layer] = np.sqrt(np.mean(c_grad**2))
-                loss += cw * np.mean(c_grad**2) / self.c_grad_norms[layer]
-                diffs[layer] += cw * c_grad / self.c_grad_norms[layer]
+                if layer not in self.norms['c']:
+                    self.norms['c'][layer] = np.sqrt(np.mean(c_grad**2))
+                loss += cw * np.mean(c_grad**2) / self.norms['c'][layer]
+                diffs[layer] += cw * c_grad / self.norms['c'][layer]
 
             # Style gradient
             if abs(sw) > 1e-15:
@@ -227,10 +226,18 @@ class StyleTransfer:
                 gram_diff = gram_matrix(current_feats[layer]) - self.grams[layer]
                 feat = current_feats[layer].reshape((n, mh * mw))
                 s_grad = (2 / feat.size) * np.dot(gram_diff, feat).reshape((1, n, mh, mw))
-                if layer not in self.s_grad_norms:
-                    self.s_grad_norms[layer] = np.sqrt(np.mean(s_grad**2))
-                loss += sw * np.mean(gram_diff**2) / self.s_grad_norms[layer]
-                utils.axpy(sw / self.s_grad_norms[layer], s_grad, diffs[layer])
+                if layer not in self.norms['s']:
+                    self.norms['s'][layer] = np.sqrt(np.mean(s_grad**2))
+                loss += sw * np.mean(gram_diff**2) / self.norms['s'][layer]
+                utils.axpy(sw / self.norms['s'][layer], s_grad, diffs[layer])
+
+            # Deep Dream gradient
+            if abs(dw) > 1e-15:
+                d_grad = current_feats[layer]
+                if layer not in self.norms['d']:
+                    self.norms['d'][layer] = np.sqrt(np.mean(d_grad**2))
+                loss += dw * np.mean(d_grad**2) / self.norms['d'][layer]
+                diffs[layer] += -dw * d_grad / self.norms['d'][layer]
 
         # Get the total variation loss and gradient
         tv_loss, tv_grad = utils.tv_norm(x / 255)
