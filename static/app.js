@@ -40,16 +40,20 @@ function refreshImage() {
 }
 
 $(document).ready(function() {
-    function makeDropZone(elem, slot) {
-        function stopEvent(e) {
-            e.stopPropagation();
-            e.preventDefault();
-        }
+    function stopEvent(e) {
+        e.stopPropagation();
+        e.preventDefault();
+    }
 
+    function makeDropZone(elem, slot) {
         elem.ondragenter = stopEvent;
         elem.ondragover = stopEvent;
         elem.ondrop = function(e) {
             stopEvent(e);
+            $(elem).css("background-color", "rgb(110, 55, 55)");
+            setTimeout(function() {
+                $(elem).css("background-color", "");
+            }, 250);
             var file = e.dataTransfer.files[0];
             var reader = new FileReader();
             var data = null;
@@ -63,6 +67,10 @@ $(document).ready(function() {
         };
     }
 
+    var body = $("body")[0]
+    body.ondragenter = stopEvent;
+    body.ondragover = stopEvent;
+    body.ondrop = stopEvent;
     makeDropZone($("#content-drop")[0], 'content');
     makeDropZone($("#style-drop")[0], 'style');
 
