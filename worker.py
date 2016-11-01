@@ -9,7 +9,6 @@ import sys
 
 import numpy as np
 import pandas as pd
-from scipy.linalg import blas
 import zmq
 
 from messages import *
@@ -318,10 +317,6 @@ class Worker:
             self.transfer.set_step_size(msg.step_size)
             if not isinstance(self.transfer.optimizer, self.transfer.optimizer_cls):
                 self.transfer.reset()
-
-
-        elif isinstance(msg, SetStepSize):
-            self.transfer.set_step_size(msg.step_size)
 
         elif isinstance(msg, SetWeights):
             self.transfer.set_weights(msg.weights, msg.params)
