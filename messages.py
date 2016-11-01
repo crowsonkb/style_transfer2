@@ -38,14 +38,6 @@ class SetOptimizer:
         self.step_size = step_size
 
 
-class SetStepSize:
-    """A request from the app to the worker to set the optimizer's step size (learning rate)."""
-
-
-    def __init__(self, step_size):
-        self.step_size = step_size
-
-
 class SetWeights:
     """A request from the app to the worker to set the loss weights for each combination of layer
     and loss type. Loss types can be divided into two categories: those which are only valid for
