@@ -91,7 +91,7 @@ def scales(size, min_size=1, factor=np.sqrt(2)):
     while True:
         size /= factor
         size_int = tuple(int(round(x)) for x in size)
-        if max(size_int) < min_size:
+        if max(size_int) < min_size or min(size_int) < 1:
             break
         sizes.append(size_int)
     sizes.reverse()
