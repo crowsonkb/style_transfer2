@@ -57,6 +57,7 @@ def line_profile(fns, mods):
     prof.disable()
     prof.print_stats()
 
+
 def read_config():
     cp = configparser.ConfigParser()
     if cp.read(str(CONFIG_PATH_NON_GIT)):
@@ -159,14 +160,21 @@ def tv_norm(x, beta=2):
     x_diff = x - roll_by_1(x.copy(), -1, axis=3)
     y_diff = x - roll_by_1(x.copy(), -1, axis=2)
     grad_norm2 = x_diff**2 + y_diff**2 + 1e-8
-    loss = np.sum(grad_norm2**(beta/2))
+    norm = np.sum(grad_norm2**(beta/2))
     dgrad_norm = (beta/2) * grad_norm2**(beta/2 - 1)
     dx_diff = 2 * x_diff * dgrad_norm
     dy_diff = 2 * y_diff * dgrad_norm
     grad = dx_diff + dy_diff
     grad -= roll_by_1(dx_diff, 1, axis=3)
     grad -= roll_by_1(dy_diff, 1, axis=2)
-    return loss, grad
+    return norm, grad
+
+
+def p_norm(x, p=2):
+    """Computes 1/p of the p-norm to the p power and its gradient."""
+    norm = np.sum(abs(x)**p) / p
+    grad = np.sign(x) * abs(x)**(p-1)
+    return norm, grad
 
 
 def as_pil(arr):

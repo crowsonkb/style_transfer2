@@ -120,7 +120,7 @@ class StyleTransfer:
         weights_shape = (len(self.model.layers()), len(SetWeights.loss_names))
         self.weights = pd.DataFrame(
             np.ones(weights_shape), self.model.layers(), SetWeights.loss_names, np.float32)
-        self.scalar_weights = {w: 1 for w in SetWeights.scalar_loss_names}
+        self.params = {w: 1 for w in SetWeights.scalar_loss_names}
         self.optimizer = None
         self.optimizer_cls = optimizers.LBFGSOptimizer
         self.c_grad_norms = {}
@@ -192,9 +192,9 @@ class StyleTransfer:
     #     if self.optimizer is not None:
     #         self.optimizer.step_size = step_size
 
-    def set_weights(self, weights, scalar_weights):
+    def set_weights(self, weights, params):
         self.weights = pd.DataFrame.from_dict(weights, dtype=np.float32)
-        self.scalar_weights = scalar_weights
+        self.params = params
         self.objective_changed()
 
     def opfunc(self, x, return_grad=True):
@@ -233,14 +233,18 @@ class StyleTransfer:
 
         # Get the total variation loss and gradient
         tv_loss, tv_grad = utils.tv_norm(x / 255)
-        loss += self.scalar_weights['tv'] * tv_loss
+        loss += self.params['tv'] * tv_loss
+
+        p_loss, p_grad = utils.p_norm(x / 255, self.params['p_power'])
+        loss += self.params['p'] * p_loss
 
         if not return_grad:
             return loss
 
-        # Get the combined gradient via backpropagation
+        # Get the combined gradient
         grad = self.model.backward(diffs).copy()
-        grad += self.scalar_weights['tv'] * tv_grad
+        grad += self.params['tv'] * tv_grad
+        grad += self.params['p'] * p_grad
 
         return loss, grad
 
@@ -312,7 +316,7 @@ class Worker:
         #     self.transfer.set_step_size(msg.step_size)
 
         elif isinstance(msg, SetWeights):
-            self.transfer.set_weights(msg.weights, msg.scalar_weights)
+            self.transfer.set_weights(msg.weights, msg.params)
 
         elif isinstance(msg, Shutdown):
             return True

@@ -44,15 +44,16 @@ class SetWeights:
     Args:
         weights: A dict of dicts of weights, arranged thusly: weights['content']['conv2_2'] is the
             weight for content loss on the layer conv2_2.
-        scalar_weights: A dict of weights which are only valid for the input layer.
-            i.e. scalar_weights['tv'].
+        params: A dict of weights which are only valid for the input layer, and miscellaneous
+                options influencing their action i.e. exponents.
+            i.e. params['tv'].
     """
     loss_names = ('content', 'style')
-    scalar_loss_names = ('tv',)
+    scalar_loss_names = ('tv', 'p', 'p_power')
 
-    def __init__(self, weights, scalar_weights):
+    def __init__(self, weights, params):
         self.weights = weights
-        self.scalar_weights = scalar_weights
+        self.params = params
 
 
 class Shutdown:
