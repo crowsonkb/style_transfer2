@@ -122,6 +122,7 @@ class StyleTransfer:
             np.ones(weights_shape), self.model.layers(), SetWeights.loss_names, np.float32)
         self.scalar_weights = {w: 1 for w in SetWeights.scalar_loss_names}
         self.optimizer = None
+        self.optimizer_cls = optimizers.LBFGSOptimizer
         self.c_grad_norms = {}
         self.s_grad_norms = {}
 
@@ -155,7 +156,7 @@ class StyleTransfer:
         self.s_grad_norms = {}
         self.t = 0
         assert self.input is not None, "No input image provided yet."
-        self.optimizer = optimizers.LBFGSOptimizer(self.input, self.opfunc)
+        self.optimizer = self.optimizer_cls(self.input, self.opfunc)
 
     def start(self):
         if self.optimizer is None:
@@ -300,6 +301,13 @@ class Worker:
                 self.transfer.set_style(msg.style_image)
 
             if msg.reset_state:
+                self.transfer.reset()
+
+        elif isinstance(msg, SetOptimizer):
+            classes = dict(adam=optimizers.AdamOptimizer,
+                           lbfgs=optimizers.LBFGSOptimizer)
+            self.transfer.optimizer_cls = classes[msg.optimizer]
+            if not isinstance(self.transfer.optimizer, classes[msg.optimizer]):
                 self.transfer.reset()
 
         # elif isinstance(msg, SetStepSize):

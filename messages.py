@@ -21,6 +21,12 @@ class SetImages:
         self.reset_state = reset_state
 
 
+class SetOptimizer:
+    """A request from the app to the worker to set the optimizer."""
+    def __init__(self, optimizer):
+        self.optimizer = optimizer
+
+
 class SetStepSize:
     """A request from the app to the worker to set the optimizer's step size (learning rate)."""
     default_adam = 10

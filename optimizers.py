@@ -38,14 +38,14 @@ class AdamOptimizer:
             size = self.x.shape[2:]
         else:
             self.x = utils.resize(self.x, size)
+        self.g1 = utils.resize(self.g1, size)
         self.g2 = np.maximum(utils.resize(self.g2, size, order=1), 0)
-        self.objective_changed()
         return self.x
 
     def objective_changed(self):
         """Advises the optimizer that the objective function has changed and that it should discard
         internal state as appropriate."""
-        self.g1 = np.zeros_like(self.x)
+        pass
 
 
 class LBFGSOptimizer:

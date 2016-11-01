@@ -120,22 +120,37 @@ def get_params(app):
 def process_params(app, msg):
     try:
         params = yaml.safe_load(msg['params'])
+
         if params['size'] != max(app.input_arr.shape):
             new_size = utils.fit_into_square(app.input_arr.shape[:2], params['size'], True)
             content_image = app.content_image.resize(new_size[::-1], Image.LANCZOS)
             input_image = SetImages.RESAMPLE
+
             if app.i == 0:
                 input_image = np.uint8(np.random.uniform(0, 255, new_size + (3,)))
                 app.input_arr = input_image
             msg_out = SetImages(new_size, input_image, np.uint8(content_image))
             app.sock_out.send_pyobj(msg_out)
             send_websocket(app, dict(type='newSize', height=new_size[0], width=new_size[1]))
-        app.weights = params['weights']
-        app.sock_out.send_pyobj(SetWeights(*app.weights))
+
+        app.sock_out.send_pyobj(SetOptimizer(params['optimizer']))
+        app.sock_out.send_pyobj(SetWeights(*params['weights']))
+
         app.params = params
     finally:
         msg = dict(type='newParams', params=get_params(app))
         send_websocket(app, msg)
+
+
+def init_params(app):
+    app.content_image = Image.open(str(MODULE_DIR / app.config['initial_content'])).convert('RGB')
+    app.style_image = Image.open(str(MODULE_DIR / app.config['initial_style'])).convert('RGB')
+    size = app.config.getint('initial_size')
+
+    app.params['size'] = size
+    app.params['optimizer'] = 'lbfgs'
+    with open(str(MODULE_DIR / app.config['initial_weights'])) as w:
+        app.params['weights'] = yaml.load(w)
 
 
 def init_arrays(app):
@@ -149,16 +164,6 @@ def init_arrays(app):
     app.sock_out.send_pyobj(msg)
 
     app.sock_out.send_pyobj(SetWeights(*app.params['weights']))
-
-
-def init_params(app):
-    app.content_image = Image.open(str(MODULE_DIR / app.config['initial_content'])).convert('RGB')
-    app.style_image = Image.open(str(MODULE_DIR / app.config['initial_style'])).convert('RGB')
-    size = app.config.getint('initial_size')
-    app.params['size'] = size
-
-    with open(str(MODULE_DIR / app.config['initial_weights'])) as w:
-        app.params['weights'] = yaml.load(w)
 
 
 async def process_messages(app):
