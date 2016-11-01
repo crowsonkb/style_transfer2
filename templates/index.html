@@ -9,19 +9,17 @@
     <button id="start" onclick="start()">Start</button><br>
 
     <div id="iterate-stats">Iterate <span id="iterate">[]</span>, SNR: <span id="loss">[]</span> dB, step size: <span id="step-size">[]</span><br>
-    <span id="its-per-s">[]</span> its/s</div><br>
+    <span id="its-per-s">[]</span> its/s</div><br><br>
 
-    Set images:<br>
-    <input type="file" id="file-selector" name="file-selector"><br>
+    Drag and drop to set input images:<br>
+    <div class="dropzone" id="content-drop">Set content image</div>
+    <div class="dropzone" id="style-drop">Set style image</div>
 
-    Scale to: <input type="number" id="resize-to" size="5"> px<br>
+    <br style="clear: both;">
+    Scale to: <input type="number" id="resize-to" size="5"> px<br><br>
 
-    <button onclick="upload('content')">Set content</button>
-    <button onclick="upload('style')">Set style</button>
-    <button onclick="reset()">Reset image</button><br><br>
-
-    Parameters:<br>
-    <textarea id="params" rows="10" cols="60"></textarea><br>
+    <p style="margin-bottom: 8px;">Parameters:<br></p>
+    <textarea id="params" rows="12" cols="70"></textarea><br>
     <button onclick="applyParams()">Apply params</button>
     <button onclick="reset(); applyParams()">Apply and reset</button><br>
 {% endblock %}

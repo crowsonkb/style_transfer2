@@ -1,6 +1,8 @@
 body {
     background-color: rgb(55, 55, 55);
     color: rgb(255, 255, 255);
+    font-family: SF UI Text, Lucida Grande, Helvetica, Arial, sans-serif;
+    line-height: 1.25;
 }
 
 button {
@@ -12,6 +14,22 @@ button {
 input {
     margin-top: 2px;
     margin-bottom: 2px;
+}
+
+textarea {
+    font-family: SF Mono, Courier, monospace;
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+.dropzone {
+    width: 225px;
+    height: 150px;
+    line-height: 150px;
+    border: 1px #ddd dashed;
+    text-align: center;
+    margin: 8px;
+    float: left;
 }
 
 #content {

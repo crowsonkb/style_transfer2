@@ -40,6 +40,32 @@ function refreshImage() {
 }
 
 $(document).ready(function() {
+    function makeDropZone(elem, slot) {
+        function stopEvent(e) {
+            e.stopPropagation();
+            e.preventDefault();
+        }
+
+        elem.ondragenter = stopEvent;
+        elem.ondragover = stopEvent;
+        elem.ondrop = function(e) {
+            stopEvent(e);
+            var file = e.dataTransfer.files[0];
+            var reader = new FileReader();
+            var data = null;
+            reader.onload = function(e) {
+                var data = e.target.result;
+                var size = $("#resize-to").val()
+                var msg = {size: size, slot: slot, data: data};
+                $.post("/upload", msg);
+            };
+            reader.readAsDataURL(file);
+        };
+    }
+
+    makeDropZone($("#content-drop")[0], 'content');
+    makeDropZone($("#style-drop")[0], 'style');
+
     // Wait one second after loading to refresh output image
     var update_every = 1000;
     $("#output-image").on("load", function() {
