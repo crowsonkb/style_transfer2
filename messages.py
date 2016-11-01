@@ -1,3 +1,5 @@
+import optimizers
+
 class SetImages:
     """A request from the app to the worker to set the image in a specific slot. Slots include
     'content', 'style', 'input', etc. An image parameter should be a NumPy array in HxWx3 layout
@@ -25,7 +27,8 @@ class SetOptimizer:
     """A request from the app to the worker to set the optimizer type and optionally step size.
     Step sizes will be taken from the per-optimizer defaults in this message type if not
     specified."""
-    optimizer_types = ('adam', 'lbfgs')
+    classes = {'adam': optimizers.AdamOptimizer,
+               'lbfgs': optimizers.LBFGSOptimizer}
     step_sizes = {'adam': 10, 'lbfgs': 1}
 
     def __init__(self, optimizer, step_size=None):

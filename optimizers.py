@@ -1,6 +1,5 @@
 import numpy as np
 
-from messages import SetStepSize
 import utils
 
 

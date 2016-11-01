@@ -314,11 +314,11 @@ class Worker:
                 self.transfer.reset()
 
         elif isinstance(msg, SetOptimizer):
-            classes = dict(adam=optimizers.AdamOptimizer,
-                           lbfgs=optimizers.LBFGSOptimizer)
-            self.transfer.optimizer_cls = classes[msg.optimizer]
-            if not isinstance(self.transfer.optimizer, classes[msg.optimizer]):
+            self.transfer.optimizer_cls = SetOptimizer.classes[msg.optimizer]
+            self.transfer.set_step_size(msg.step_size)
+            if not isinstance(self.transfer.optimizer, self.transfer.optimizer_cls):
                 self.transfer.reset()
+
 
         elif isinstance(msg, SetStepSize):
             self.transfer.set_step_size(msg.step_size)
