@@ -124,7 +124,7 @@ def fit_into_square(current_size, size, scale_up=False):
     return (new_w, new_h)
 
 
-def resize_to_fit(image, size, scale_up=False):
+def resize_to_fit(image, size, scale_up=True):
     """Resizes a PIL image to fit into a size-by-size square."""
     new_size = fit_into_square(image.size, size, scale_up)
     return image.resize(new_size, Image.LANCZOS)
