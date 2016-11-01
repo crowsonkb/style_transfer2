@@ -247,7 +247,7 @@ def init():
 
     aiohttp_jinja2.setup(app, loader=jinja2.FileSystemLoader(str(TEMPLATES_PATH)))
     app.router.add_route('GET', '/', root)
-    app.router.add_route('GET', '/output.png', output_image)
+    app.router.add_route('GET', '/output', output_image)
     app.router.add_route('POST', '/upload', upload)
     app.router.add_route('GET', '/websocket', websocket)
     app.router.add_static('/', STATIC_PATH)

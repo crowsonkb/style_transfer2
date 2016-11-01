@@ -36,7 +36,7 @@ function upload(slot) {
 }
 
 function refreshImage() {
-    $("#output-image").attr("src", "/output.png");
+    $("#output-image").attr("src", "/output");
 }
 
 $(document).ready(function() {
