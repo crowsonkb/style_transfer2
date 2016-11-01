@@ -13,6 +13,7 @@ from scipy.linalg import blas
 import zmq
 
 from messages import *
+import optimizers
 import utils
 
 utils.setup_exceptions()
@@ -25,23 +26,6 @@ logger = logging.getLogger(__name__)
 caffe_import_msg = '''
 ImportError: Caffe was not found in PYTHONPATH. Please edit config.ini to
 contain the line "caffe_path = <path to compiled Caffe>."'''
-
-
-# pylint: disable=no-member
-def dot(x, y):
-    """Returns the dot product of two float32 arrays with the same shape."""
-    x, y = x.ravel(), y.ravel()
-    return blas.sdot(x, y)
-
-
-# pylint: disable=no-member
-def axpy(a, x, y):
-    """Sets y = a*x + y for float a and float32 arrays x, y and returns y."""
-    x_, y_ = x.ravel(), y.ravel()
-    y_ = blas.saxpy(x_, y_, a=a).reshape(y.shape)
-    if y is not y_:
-        y[:] = y_
-    return y
 
 
 class CaffeModel:
@@ -113,85 +97,6 @@ class CaffeModel:
         return self.net.blobs['data'].diff
 
 
-class LBFGSOptimizer:
-    def __init__(self, x, opfunc, step_size=1, n_corr=10):
-        """L-BFGS for function minimization, with fixed size steps (no line search)."""
-        self.x = x
-        self.opfunc = opfunc
-        self.step_size = step_size
-        self.n_corr = n_corr
-        self.loss = None
-        self.grad = None
-        self.sk = []
-        self.yk = []
-        self.syk = []
-
-    def step(self):
-        """Take an L-BFGS step. Returns the new parameters and the loss after the step."""
-        if self.loss is None:
-            self.loss, self.grad = self.opfunc(self.x)
-
-        # Compute and take an L-BFGS step
-        s = -self.step_size * self.inv_hv(self.grad)
-        self.x += s
-
-        # Compute a curvature pair and store parameters for the next step
-        loss, grad = self.opfunc(self.x)
-        y = grad - self.grad
-        self.store_curvature_pair(s, y)
-        self.loss, self.grad = loss, grad
-
-        return self.x, loss
-
-    def store_curvature_pair(self, s, y):
-        """Updates the L-BFGS memory with a new curvature pair."""
-        sy = dot(s, y)
-        if sy > 1e-10:
-            self.sk.append(s)
-            self.yk.append(y)
-            self.syk.append(sy)
-        if len(self.sk) > self.n_corr:
-            self.sk, self.yk, self.syk = self.sk[1:], self.yk[1:], self.syk[1:]
-
-    def inv_hv(self, p):
-        """Computes the product of a vector with an approximation of the inverse Hessian."""
-        p = p.copy()
-        alphas = []
-        for s, y, sy in zip(reversed(self.sk), reversed(self.yk), reversed(self.syk)):
-            alphas.append(dot(s, p) / sy)
-            axpy(-alphas[-1], y, p)
-
-        if len(self.sk) > 0:
-            sy, y = self.syk[-1], self.yk[-1]
-            p *= sy / dot(y, y)
-        else:
-            # With no curvature information, take a reasonably-scaled step
-            p /= np.sqrt(dot(p, p) / p.size)
-
-        for s, y, sy, alpha in zip(self.sk, self.yk, self.syk, reversed(alphas)):
-            beta = dot(y, p) / sy
-            axpy(alpha - beta, s, p)
-
-        return p
-
-    def resample(self, size, new_x=None):
-        """Resamples the optimizer's internal state to a new HxW size. The L-BFGS memory is cleared
-        and the Adam moment accumulators are resized."""
-        if new_x is not None:
-            self.x = new_x
-            size = new_x.shape[-2:]
-        else:
-            self.x = utils.resize(self.x, size)
-        self.objective_changed()
-        return self.x
-
-    def objective_changed(self):
-        """Advises the optimizer that the objective function has changed and that it should discard
-        internal state as appropriate."""
-        self.sk, self.yk, self.syk = [], [], []
-        self.loss, self.grad = None, None
-
-
 def gram_matrix(x):
     """Computes the Gram matrix of a feature map."""
     n, c, h, w = x.shape
@@ -250,7 +155,7 @@ class StyleTransfer:
         self.s_grad_norms = {}
         self.t = 0
         assert self.input is not None, "No input image provided yet."
-        self.optimizer = LBFGSOptimizer(self.input, self.opfunc)
+        self.optimizer = optimizers.LBFGSOptimizer(self.input, self.opfunc)
 
     def start(self):
         if self.optimizer is None:
@@ -282,11 +187,11 @@ class StyleTransfer:
             self.grams[layer] = gram_matrix(feat)
         self.objective_changed()
 
-    def set_step_size(self, step_size):
-        """Sets the optimizer's step size."""
-        self.step_size = step_size
-        if self.optimizer is not None:
-            self.optimizer.step_size = step_size
+    # def set_step_size(self, step_size):
+    #     """Sets the optimizer's step size."""
+    #     self.step_size = step_size
+    #     if self.optimizer is not None:
+    #         self.optimizer.step_size = step_size
 
     def set_weights(self, weights, scalar_weights):
         self.weights = pd.DataFrame.from_dict(weights, dtype=np.float32)
@@ -325,7 +230,7 @@ class StyleTransfer:
                 if layer not in self.s_grad_norms:
                     self.s_grad_norms[layer] = np.sqrt(np.mean(s_grad**2))
                 loss += sw * np.mean(gram_diff**2) / self.s_grad_norms[layer]
-                axpy(sw / self.s_grad_norms[layer], s_grad, diffs[layer])
+                utils.axpy(sw / self.s_grad_norms[layer], s_grad, diffs[layer])
 
         # Get the total variation loss and gradient
         tv_loss, tv_grad = utils.tv_norm(x / 255)
@@ -397,8 +302,8 @@ class Worker:
             if msg.reset_state:
                 self.transfer.reset()
 
-        elif isinstance(msg, SetStepSize):
-            self.transfer.set_step_size(msg.step_size)
+        # elif isinstance(msg, SetStepSize):
+        #     self.transfer.set_step_size(msg.step_size)
 
         elif isinstance(msg, SetWeights):
             self.transfer.set_weights(msg.weights, msg.scalar_weights)

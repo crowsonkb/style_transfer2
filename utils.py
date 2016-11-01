@@ -9,10 +9,28 @@ import sys
 import numpy as np
 from PIL import Image
 from scipy import ndimage
+from scipy.linalg import blas
 
 MODULE_DIR = Path(__file__).parent.resolve()
 CONFIG_PATH = MODULE_DIR / 'config.ini'
 CONFIG_PATH_NON_GIT = MODULE_DIR / 'config_non_git.ini'
+
+
+# pylint: disable=no-member
+def dot(x, y):
+    """Returns the dot product of two float32 arrays with the same shape."""
+    x, y = x.ravel(), y.ravel()
+    return blas.sdot(x, y)
+
+
+# pylint: disable=no-member
+def axpy(a, x, y):
+    """Sets y = a*x + y for float a and float32 arrays x, y and returns y."""
+    x_, y_ = x.ravel(), y.ravel()
+    y_ = blas.saxpy(x_, y_, a=a).reshape(y.shape)
+    if y is not y_:
+        y[:] = y_
+    return y
 
 
 @contextmanager
