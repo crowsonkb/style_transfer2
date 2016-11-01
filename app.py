@@ -139,13 +139,8 @@ def process_params(app, msg):
 
 
 def init_arrays(app):
-    app.content_image = Image.open(str(MODULE_DIR / app.config['initial_content'])).convert('RGB')
-    app.style_image = Image.open(str(MODULE_DIR / app.config['initial_style'])).convert('RGB')
-    size = app.config.getint('initial_size')
-    app.params['size'] = size
-
-    content = utils.resize_to_fit(app.content_image, size)
-    style = utils.resize_to_fit(app.style_image, size)
+    content = utils.resize_to_fit(app.content_image, app.params['size'])
+    style = utils.resize_to_fit(app.style_image, app.params['size'])
     w, h = content.size
 
     app.input_arr = np.uint8(np.random.uniform(0, 255, (h, w, 3)))
@@ -153,9 +148,17 @@ def init_arrays(app):
     msg = SetImages(None, app.input_arr, np.uint8(content), np.uint8(style))
     app.sock_out.send_pyobj(msg)
 
+    app.sock_out.send_pyobj(SetWeights(*app.params['weights']))
+
+
+def init_params(app):
+    app.content_image = Image.open(str(MODULE_DIR / app.config['initial_content'])).convert('RGB')
+    app.style_image = Image.open(str(MODULE_DIR / app.config['initial_style'])).convert('RGB')
+    size = app.config.getint('initial_size')
+    app.params['size'] = size
+
     with open(str(MODULE_DIR / app.config['initial_weights'])) as w:
         app.params['weights'] = yaml.load(w)
-    app.sock_out.send_pyobj(SetWeights(*app.params['weights']))
 
 
 async def process_messages(app):
@@ -196,6 +199,16 @@ async def process_messages(app):
             logger.error('Unknown message type received over ZeroMQ.')
 
 
+async def monitor_worker(app):
+    while True:
+        if app.worker_proc is None:
+            init_arrays(app)
+            app.worker_proc = subprocess.Popen([str(WORKER_PATH)])
+        if app.worker_proc.poll():
+            app.worker_proc = None
+        await asyncio.sleep(0.1)
+
+
 async def startup_tasks(app):
     app.sock_in = ctx.socket(zmq.PULL)
     app.sock_out = ctx.socket(zmq.PUSH)
@@ -206,13 +219,15 @@ async def startup_tasks(app):
     app.last_it_time = 0
     app.its_per_s = 0
     app.params = {}
-    init_arrays(app)
+    init_params(app)
     app.pm_future = asyncio.ensure_future(process_messages(app))
-    app.worker_proc = subprocess.Popen([str(WORKER_PATH)])
+    app.worker_proc = None
+    app.mw_future = asyncio.ensure_future(monitor_worker(app))
 
 
 async def cleanup_tasks(app):
     app.pm_future.cancel()
+    app.mw_future.cancel()
     app.sock_out.send_pyobj(Shutdown())
     try:
         app.worker_proc.wait(timeout=5)
