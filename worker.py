@@ -127,8 +127,6 @@ class StyleTransfer:
         self.s_grad_norms = {}
 
     def objective_changed(self):
-        self.c_grad_norms = {}
-        self.s_grad_norms = {}
         if self.optimizer is not None:
             self.optimizer.objective_changed()
 
