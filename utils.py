@@ -1,8 +1,10 @@
 """Various functions which must be used by both the app and its worker process."""
 
+import cProfile
 import configparser
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
+import inspect
 import logging
 import os
 from pathlib import Path
@@ -10,7 +12,6 @@ import sys
 
 import numpy as np
 from PIL import Image
-from scipy import ndimage
 from scipy.linalg import blas
 
 MODULE_DIR = Path(__file__).parent.resolve()
@@ -20,7 +21,7 @@ CONFIG_PATH_NON_GIT = MODULE_DIR / 'config_non_git.ini'
 
 # pylint: disable=no-member
 def dot(x, y):
-    """Returns the dot product of two float32 arrays with the same shape."""
+    """Returns the dot product of two float32 arrays of the same size."""
     x, y = x.ravel(), y.ravel()
     return blas.sdot(x, y)
 
@@ -37,7 +38,7 @@ def axpy(a, x, y):
 
 @contextmanager
 def profile():
-    import cProfile
+    """A context manager which prints a profile for the time when execution was in its context."""
     prof = cProfile.Profile()
     prof.enable()
     yield
@@ -74,6 +75,7 @@ def line_profile(items):
 
 
 def read_config():
+    """Returns a dict-like object consisting of key-value pairs from the configuration file."""
     cp = configparser.ConfigParser()
     if cp.read(str(CONFIG_PATH_NON_GIT)):
         return cp['DEFAULT']
@@ -115,6 +117,7 @@ def resample_nchw(a, hw, method=Image.LANCZOS):
 
 
 def setup_exceptions(mode='Plain', color_scheme='Neutral'):
+    """If it is present, uses IPython's ultratb to make exceptions more readable."""
     try:
         from IPython.core import ultratb
         sys.excepthook = ultratb.AutoFormattedTB(mode=mode, color_scheme=color_scheme)
@@ -123,6 +126,7 @@ def setup_exceptions(mode='Plain', color_scheme='Neutral'):
 
 
 def setup_logging():
+    """Sets the logging configuration for the current process."""
     fmt = '%(asctime)s.%(msecs)03d %(filename)s %(levelname)s: %(message)s'
     datefmt = '%H:%M:%S'
     logging.basicConfig(level=logging.DEBUG, format=fmt, datefmt=datefmt)
@@ -201,7 +205,7 @@ def tv_norm(x, beta=2):
 
 
 def p_norm(x, p=2):
-    """Computes 1/p of the p-norm to the p power and its gradient."""
+    """Computes 1/p of the p-norm to the p power and its gradient. From jcjohnson/cnn-vis."""
     norm = np.sum(abs(x)**p) / p
     grad = np.sign(x) * abs(x)**(p-1)
     return norm, grad

@@ -32,7 +32,8 @@ class AdamOptimizer:
         return self.x, loss
 
     def resample(self, size, new_x=None):
-        """Resamples the optimizer's internal state on the last two axes to a new HxW size."""
+        """Makes the optimizer's internal state compatible with a new HxW size. Returns the new
+        parameters array."""
         if new_x is not None:
             self.x = new_x
             size = self.x.shape[2:]
@@ -110,8 +111,8 @@ class LBFGSOptimizer:
         return p
 
     def resample(self, size, new_x=None):
-        """Resamples the optimizer's internal state to a new HxW size. The L-BFGS memory is cleared
-        and the Adam moment accumulators are resized."""
+        """Makes the optimizer's internal state compatible with a new HxW size. Returns the new
+        parameters array."""
         if new_x is not None:
             self.x = new_x
             size = new_x.shape[-2:]

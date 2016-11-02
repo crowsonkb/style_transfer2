@@ -54,6 +54,7 @@ class CaffeModel:
         logger.info('Caffe initialized.')
 
     def reload_net(self):
+        """Recreates the neural network in its initial state."""
         import caffe
         self.net = caffe.Net(self.prototxt, 1, weights=self.caffemodel)
 
@@ -262,7 +263,7 @@ class StyleTransfer:
         return loss, grad
 
     def step(self):
-        """Take a gradient descent step."""
+        """Returns the next iterate and the current value of the loss function."""
         self.t += 1
         x, loss = self.optimizer.step()
         return self.model.deprocess(x), loss
