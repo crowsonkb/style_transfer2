@@ -1,4 +1,5 @@
 import numpy as np
+from PIL import Image
 
 import utils
 
@@ -36,9 +37,9 @@ class AdamOptimizer:
             self.x = new_x
             size = self.x.shape[2:]
         else:
-            self.x = utils.resize(self.x, size)
-        self.g1 = utils.resize(self.g1, size)
-        self.g2 = np.maximum(utils.resize(self.g2, size, order=1), 0)
+            self.x = utils.resample_nchw(self.x, size)
+        self.g1 = utils.resample_nchw(self.g1, size)
+        self.g2 = np.maximum(utils.resample_nchw(self.g2, size, method=Image.BILINEAR), 0)
         return self.x
 
     def objective_changed(self):
@@ -115,7 +116,7 @@ class LBFGSOptimizer:
             self.x = new_x
             size = new_x.shape[-2:]
         else:
-            self.x = utils.resize(self.x, size)
+            self.x = utils.resample_nchw(self.x, size)
         self.objective_changed()
         return self.x
 

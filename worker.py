@@ -147,7 +147,7 @@ class StyleTransfer:
 
     def resample_content(self, size):
         if self.content is not None:
-            self.content = utils.resize(self.content, size)
+            self.content = utils.resample_nchw(self.content, size)
         else:
             self.content = np.zeros((1, 3) + size, np.float32)
         features = self.model.forward(self.content)

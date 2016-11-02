@@ -1,8 +1,10 @@
 """Various functions which must be used by both the app and its worker process."""
 
 import configparser
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 import logging
+import os
 from pathlib import Path
 import sys
 
@@ -66,6 +68,39 @@ def read_config():
     return cp['DEFAULT']
 
 
+def _resample(a, b, hw, method):
+    b[:] = Image.fromarray(a).resize((hw[1], hw[0]), method)
+
+
+def resample_hwc(a, hw, method=Image.LANCZOS):
+    """Resamples an image array in HxWxC format to a new HxW size. The interpolation is performed
+    in floating point and the result dtype is numpy.float32."""
+    a = np.float32(a)
+    ch = a.shape[-1]
+    b = np.zeros((hw[0], hw[1], ch), np.float32)
+
+    with ThreadPoolExecutor(max_workers=os.cpu_count()) as ex:
+        futs = [ex.submit(_resample, a[:, :, i], b[:, :, i], hw, method) for i in range(ch)]
+        _ = [fut.result() for fut in futs]
+
+    return b
+
+
+def resample_nchw(a, hw, method=Image.LANCZOS):
+    """Resamples an image array in NxCxHxW format to a new HxW size. The interpolation is performed
+    in floating point and the result dtype is numpy.float32."""
+    a = np.float32(a)
+    n, ch = a.shape[:2]
+    b = np.zeros((n, ch, hw[0], hw[1]), np.float32)
+
+    with ThreadPoolExecutor(max_workers=os.cpu_count()) as ex:
+        futs = [[ex.submit(_resample, a[i, j], b[i, j], hw, method) for j in range(ch)]
+                for i in range(n)]
+        _ = [[fut.result() for fut in lst] for lst in futs]
+
+    return b
+
+
 def setup_exceptions(mode='Plain', color_scheme='Neutral'):
     try:
         from IPython.core import ultratb
@@ -96,16 +131,6 @@ def scales(size, min_size=1, factor=np.sqrt(2)):
         sizes.append(size_int)
     sizes.reverse()
     return sizes
-
-
-def resize(arr, size, order=1):
-    """Resamples an NxCxHxW NumPy float array to a different HxW shape."""
-    arr = np.float32(arr)
-    h, w = size
-    hh, ww = arr.shape[2:]
-    resized_arr = ndimage.zoom(arr, (1, 1, h/hh, w/ww), order=order)
-    assert resized_arr.shape[2:] == size
-    return resized_arr
 
 
 def fit_into_square(current_size, size, scale_up=False):
