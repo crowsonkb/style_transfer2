@@ -47,13 +47,26 @@ def profile():
 
 
 @contextmanager
-def line_profile(fns, mods):
+def line_profile(items):
+    """A context manager which prints a line-by-line profile for the given functions, modules, or
+    module names while execution is in its context.
+
+    Example:
+
+    with line_profile(__name__, Class.some_function, some_module):
+        do_something()
+    """
     from line_profiler import LineProfiler
     prof = LineProfiler()
-    for fn in fns:
-        prof.add_function(fn)
-    for mod in mods:
-        prof.add_module(mod)
+    for item in items:
+        if inspect.isfunction(item):
+            prof.add_function(item)
+        elif inspect.ismodule(item):
+            prof.add_module(item)
+        elif isinstance(item, str):
+            prof.add_module(sys.modules[str])
+        else:
+            raise TypeError('Inputs must be functions, modules, or module names')
     prof.enable()
     yield
     prof.disable()
