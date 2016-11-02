@@ -73,6 +73,7 @@ $(document).ready(function() {
     body.ondrop = stopEvent;
     makeDropZone($("#content-drop")[0], 'content');
     makeDropZone($("#style-drop")[0], 'style');
+    makeDropZone($("#output-image")[0], 'input');
 
     // Wait one second after loading to refresh output image
     var update_every = 1000;

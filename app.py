@@ -56,11 +56,17 @@ async def upload(request):
     msg = await request.post()
     data = binascii.a2b_base64(msg['data'].partition(',')[2])
     image = Image.open(io.BytesIO(data)).convert('RGB')
-    current_image = np.uint8(utils.resize_to_fit(image, int(msg['size'])))
-    if msg['slot'] == 'style':
+    if msg['slot'] == 'input':
+        current_image = np.uint8(image.resize(request.app.input_arr.shape[:2][::-1],
+                                              Image.LANCZOS))
+        request.app.input_arr = current_image
+        out_msg = SetImages(input_image=current_image)
+    elif msg['slot'] == 'style':
+        current_image = np.uint8(utils.resize_to_fit(image, int(msg['size'])))
         out_msg = SetImages(style_image=current_image)
         request.app.style_image = image
     elif msg['slot'] == 'content':
+        current_image = np.uint8(utils.resize_to_fit(image, int(msg['size'])))
         out_msg = SetImages(current_image.shape[:2], SetImages.RESAMPLE, current_image)
         request.app.content_image = image
         send_websocket(request.app, dict(type='newSize', height=current_image.shape[0],
