@@ -21,7 +21,9 @@ CONFIG_PATH_NON_GIT = MODULE_DIR / 'config_non_git.ini'
 
 # pylint: disable=no-member
 def dot(x, y):
-    """Returns the dot product of two float32 arrays of the same size."""
+    """Returns the dot product of two float32 arrays of the same shape."""
+    if x.shape != y.shape:
+        raise ValueError('Sizes do not match: x=%s y=%s' % (x.shape, y.shape))
     x, y = x.ravel(), y.ravel()
     return blas.sdot(x, y)
 
@@ -29,6 +31,8 @@ def dot(x, y):
 # pylint: disable=no-member
 def axpy(a, x, y):
     """Sets y = a*x + y for float a and float32 arrays x, y and returns y."""
+    if x.shape != y.shape:
+        raise ValueError('Sizes do not match: x=%s y=%s' % (x.shape, y.shape))
     x_, y_ = x.ravel(), y.ravel()
     y_ = blas.saxpy(x_, y_, a=a).reshape(y.shape)
     if y is not y_:
