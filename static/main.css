@@ -17,7 +17,7 @@ input {
 }
 
 textarea {
-    font-family: SF Mono, Courier, monospace;
+    font-family: SF Mono, Consolas, monospace;
     font-size: 12px;
     line-height: 1.4;
 }
