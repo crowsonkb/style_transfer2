@@ -163,10 +163,10 @@ def init_params(app):
 def init_arrays(app):
     content = utils.resize_to_fit(app.content_image, app.params['size'])
     style = utils.resize_to_fit(app.style_image, app.params['size'])
-    w, h = content.size
+    if not hasattr(app, 'input_arr'):
+        w, h = content.size
+        app.input_arr = np.uint8(np.random.uniform(0, 255, (h, w, 3)))
 
-    app.input_arr = np.uint8(np.random.uniform(0, 255, (h, w, 3)))
-    app.i = 0
     msg = SetImages(None, app.input_arr, np.uint8(content), np.uint8(style))
     app.sock_out.send_pyobj(msg)
 
@@ -213,11 +213,9 @@ async def process_messages(app):
 
 async def monitor_worker(app):
     while True:
-        if app.worker_proc is None:
+        if app.worker_proc is None or app.worker_proc.poll():
             init_arrays(app)
             app.worker_proc = subprocess.Popen([str(WORKER_PATH)])
-        if app.worker_proc.poll():
-            app.worker_proc = None
         await asyncio.sleep(0.1)
 
 
@@ -232,9 +230,10 @@ async def startup_tasks(app):
     app.its_per_s = 0
     app.params = {}
     init_params(app)
-    app.pm_future = asyncio.ensure_future(process_messages(app))
+    app.i = 0
     app.worker_proc = None
     app.mw_future = asyncio.ensure_future(monitor_worker(app))
+    app.pm_future = asyncio.ensure_future(process_messages(app))
 
 
 async def cleanup_tasks(app):
