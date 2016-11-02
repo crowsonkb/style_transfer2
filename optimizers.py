@@ -46,7 +46,9 @@ class AdamOptimizer:
     def objective_changed(self):
         """Advises the optimizer that the objective function has changed and that it should discard
         internal state as appropriate."""
-        pass
+        self.t = 0
+        self.g1[:] = 0
+        self.g2[:] = 0
 
 
 class LBFGSOptimizer:
