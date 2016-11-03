@@ -76,7 +76,7 @@ $(document).ready(function() {
     makeDropZone($("#output-image")[0], 'input');
 
     // Wait one second after loading to refresh output image
-    var update_every = 1000;
+    var update_every = 100;
     $("#output-image").on("load", function() {
         setTimeout(refreshImage, update_every);
     });
