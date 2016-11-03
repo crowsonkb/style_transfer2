@@ -240,6 +240,7 @@ class StyleTransfer:
             # Deep Dream gradient
             if abs(dw) > 1e-15:
                 d_grad = current_feats[layer]
+                d_grad *= 2 / d_grad.size
                 if layer not in self.norms['d']:
                     self.norms['d'][layer] = np.sqrt(np.mean(d_grad**2))
                 loss += dw * np.mean(d_grad**2) / self.norms['d'][layer]
