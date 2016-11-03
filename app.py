@@ -63,6 +63,7 @@ async def upload(request):
         out_msg = SetImages(input_image=current_image)
     elif msg['slot'] == 'style':
         current_image = np.uint8(utils.resize_to_fit(image, int(msg['size'])))
+        request.app.style_size = msg['size']
         out_msg = SetImages(style_image=current_image)
         request.app.style_image = image
     elif msg['slot'] == 'content':
@@ -156,6 +157,7 @@ def init_params(app):
     size = app.config.getint('initial_size')
 
     app.params['size'] = size
+    app.style_size = size
     app.params['optimizer'] = 'lbfgs'
     app.params['optimizer_step_size'] = SetOptimizer.step_sizes['lbfgs']
     with open(str(MODULE_DIR / app.config['initial_weights'])) as w:
@@ -164,7 +166,7 @@ def init_params(app):
 
 def init_arrays(app):
     content = utils.resize_to_fit(app.content_image, app.params['size'])
-    style = utils.resize_to_fit(app.style_image, app.params['size'])
+    style = utils.resize_to_fit(app.style_image, app.style_size)
     if not hasattr(app, 'input_arr'):
         w, h = content.size
         app.input_arr = np.uint8(np.random.uniform(0, 255, (h, w, 3)))
@@ -205,6 +207,11 @@ async def process_messages(app):
 
         elif isinstance(recv_msg, Shutdown):
             raise KeyboardInterrupt()
+
+        elif isinstance(recv_msg, WorkerReady):
+            app.running = False
+            send_websocket(app, dict(type='state', running=app.running))
+            init_arrays(app)
 
         else:
             logger.error('Unknown message type received over ZeroMQ.')
@@ -265,6 +272,9 @@ app = init()
 
 def main():
     """The main function."""
+    if app.config.getboolean('debug', False):
+        utils.setup_exceptions(mode='Verbose')
+
     utils.setup_logging()
     try:
         web.run_app(app, host=app.config['http_host'], port=app.config['http_port'],

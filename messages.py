@@ -1,5 +1,22 @@
 import optimizers
 
+
+class Iterate:
+    """A notification from the worker to the app that a new iterate has been produced. It contains
+    the image as a NumPy float32 (or convertable-to-float32, since the receiver will call
+    np.float32() on all arrays received) array in HxWx3 layout with RGB channel order. 'i' is the
+    number of iterates produced since the start of iteration."""
+    def __init__(self, image, loss, i):
+        self.image = image
+        self.loss = loss
+        self.i = i
+
+
+class PauseIteration:
+    """Signals the worker to pause iteration."""
+    pass
+
+
 class SetImages:
     """A request from the app to the worker to set the image in a specific slot. Slots include
     'content', 'style', 'input', etc. An image parameter should be a NumPy array in HxWx3 layout
@@ -68,17 +85,6 @@ class StartIteration:
     pass
 
 
-class PauseIteration:
-    """Signals the worker to pause iteration."""
+class WorkerReady:
+    """Signals the app that the worker is ready to receive messages and should be initialized."""
     pass
-
-
-class Iterate:
-    """A notification from the worker to the app that a new iterate has been produced. It contains
-    the image as a NumPy float32 (or convertable-to-float32, since the receiver will call
-    np.float32() on all arrays received) array in HxWx3 layout with RGB channel order. 'i' is the
-    number of iterates produced since the start of iteration."""
-    def __init__(self, image, loss, i):
-        self.image = image
-        self.loss = loss
-        self.i = i

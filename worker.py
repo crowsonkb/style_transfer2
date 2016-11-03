@@ -80,6 +80,7 @@ class CaffeModel:
         # if np.prod(self.net.blobs['data'].data.shape) > np.prod(image.shape):
         #     self.reload_net()
         self.net.blobs['data'].reshape(*image.shape)
+        # logger.debug('req shape: %s, shape: %s', image.shape, self.net.blobs['data'].data.shape)
         return self.net.forward(data=image, blobs=list(layers))
 
     def backward(self, diffs):
@@ -215,7 +216,7 @@ class StyleTransfer:
         for layer in layers:
             w = self.weights
             cw, sw, dw = w['content'][layer], w['style'][layer], w['deepdream'][layer]
-            diffs[layer] = np.zeros_like(self.features[layer])
+            diffs[layer] = np.zeros_like(current_feats[layer])
 
             # Content gradient
             if abs(cw) > 1e-15:
@@ -284,6 +285,7 @@ class Worker:
         model = CaffeModel(prototxt, caffemodel, gpu)
 
         self.transfer = StyleTransfer(model)
+        self.sock_out.send_pyobj(WorkerReady())
 
     def run(self):
         try:
@@ -353,6 +355,9 @@ def main():
     config = utils.read_config()
     if 'caffe_path' in config:
         sys.path.append(config['caffe_path'] + '/python')
+
+    if config.getboolean('debug', False):
+        utils.setup_exceptions(mode='Verbose')
 
     utils.setup_logging()
 
