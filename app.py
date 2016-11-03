@@ -272,10 +272,11 @@ app = init()
 
 def main():
     """The main function."""
-    if app.config.getboolean('debug', False):
+    debug = app.config.getboolean('debug', False)
+    if debug:
         utils.setup_exceptions(mode='Verbose')
+    utils.setup_logging(debug)
 
-    utils.setup_logging()
     try:
         web.run_app(app, host=app.config['http_host'], port=app.config['http_port'],
                     shutdown_timeout=1)

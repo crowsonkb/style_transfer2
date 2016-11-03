@@ -154,11 +154,14 @@ def setup_exceptions(mode='Plain', color_scheme='Neutral'):
         pass
 
 
-def setup_logging():
+def setup_logging(debug=False):
     """Sets the logging configuration for the current process."""
     fmt = '%(asctime)s.%(msecs)03d %(filename)s %(levelname)s: %(message)s'
     datefmt = '%H:%M:%S'
-    logging.basicConfig(level=logging.DEBUG, format=fmt, datefmt=datefmt)
+    if debug:
+        logging.basicConfig(level=logging.DEBUG, format=fmt, datefmt=datefmt)
+    else:
+        logging.basicConfig(level=logging.DEBUG, format=fmt, datefmt=datefmt)
     logging.captureWarnings(True)
 
 

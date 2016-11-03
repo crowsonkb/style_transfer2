@@ -356,10 +356,10 @@ def main():
     if 'caffe_path' in config:
         sys.path.append(config['caffe_path'] + '/python')
 
-    if config.getboolean('debug', False):
+    debug = config.getboolean('debug', False)
+    if debug:
         utils.setup_exceptions(mode='Verbose')
-
-    utils.setup_logging()
+    utils.setup_logging(debug)
 
     Worker(config).run()
     logger.info('Shutting down worker process.')
