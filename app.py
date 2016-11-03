@@ -179,33 +179,37 @@ def init_arrays(app):
     app.sock_out.send_pyobj(SetWeights(*app.params['weights']))
 
 
+def process_iterate(app, recv_msg):
+    # Update the average iterates per second value
+    it_time = time.perf_counter()
+    if recv_msg.i:
+        app.its_per_s(1 / (it_time - app.last_it_time))
+    else:
+        app.its_per_s.clear()
+    app.i = recv_msg.i
+    app.last_it_time = it_time
+
+    # Compute RMS difference of iterates
+    step_size = np.nan
+    if recv_msg.i > 0 and recv_msg.image.shape == app.input_arr.shape:
+        diff = recv_msg.image - app.input_arr
+        step_size = np.sqrt(np.mean(diff**2))
+
+    logger.info('iterate %d received, loss: %g, step size: %g',
+                recv_msg.i, recv_msg.loss, step_size)
+
+    # Notify the client that an iterate was received
+    msg = dict(type='iterateInfo', i=recv_msg.i, loss=float(recv_msg.loss),
+               stepSize=float(step_size), itsPerS=app.its_per_s())
+    send_websocket(app, msg)
+    app.input_arr = recv_msg.image
+
+
 async def process_messages(app):
     while True:
         recv_msg = await app.sock_in.recv_pyobj()
         if isinstance(recv_msg, Iterate):
-            # Update the average iterates per second value
-            it_time = time.perf_counter()
-            if recv_msg.i:
-                app.its_per_s(1 / (it_time - app.last_it_time))
-            else:
-                app.its_per_s.clear()
-            app.i = recv_msg.i
-            app.last_it_time = it_time
-
-            # Compute RMS difference of iterates
-            step_size = np.nan
-            if recv_msg.i > 0 and recv_msg.image.shape == app.input_arr.shape:
-                diff = recv_msg.image - app.input_arr
-                step_size = np.sqrt(np.mean(diff**2))
-
-            logger.info('iterate %d received, loss: %g, step size: %g',
-                        recv_msg.i, recv_msg.loss, step_size)
-
-            # Notify the client that an iterate was received
-            msg = dict(type='iterateInfo', i=recv_msg.i, loss=float(recv_msg.loss),
-                       stepSize=float(step_size), itsPerS=app.its_per_s())
-            send_websocket(app, msg)
-            app.input_arr = recv_msg.image
+            process_iterate(app, recv_msg)
 
         elif isinstance(recv_msg, Shutdown):
             raise KeyboardInterrupt()
