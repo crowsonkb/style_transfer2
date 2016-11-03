@@ -224,7 +224,7 @@ class StyleTransfer:
                 c_grad *= 2 / c_grad.size
                 if layer not in self.norms['c']:
                     self.norms['c'][layer] = np.sqrt(np.mean(c_grad**2))
-                loss += abs(cw) * np.mean(c_grad**2) / self.norms['c'][layer]
+                loss += cw * np.mean(c_grad**2) / self.norms['c'][layer]
                 diffs[layer] += cw * c_grad / self.norms['c'][layer]
 
             # Style gradient
@@ -235,7 +235,7 @@ class StyleTransfer:
                 s_grad = (2 / feat.size) * np.dot(gram_diff, feat).reshape((1, n, mh, mw))
                 if layer not in self.norms['s']:
                     self.norms['s'][layer] = np.sqrt(np.mean(s_grad**2))
-                loss += abs(sw) * np.mean(gram_diff**2) / self.norms['s'][layer]
+                loss += sw * np.mean(gram_diff**2) / self.norms['s'][layer]
                 utils.axpy(sw / self.norms['s'][layer], s_grad, diffs[layer])
 
             # Deep Dream gradient
