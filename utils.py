@@ -9,6 +9,7 @@ import logging
 import os
 from pathlib import Path
 import sys
+import warnings
 
 import numpy as np
 from PIL import Image
@@ -38,6 +39,30 @@ def axpy(a, x, y):
     if y is not y_:
         y[:] = y_
     return y
+
+
+class DecayingMean:
+    """An exponentially weighted decaying mean with initialization bias correction. When called,
+    returns the current mean. When called with a parameter, decays the mean and adds the parameter
+    to it. If called while empty, returns NaN."""
+    def __init__(self, shape=(), dtype=np.float64, decay=0.9):
+        self.mean = np.zeros(shape, dtype)
+        self.decay = decay
+        self.items = 0
+
+    def __call__(self, item=None):
+        if item is not None:
+            self.mean = self.decay*self.mean + (1-self.decay)*item
+            self.items += 1
+        if self.items == 0:
+            warnings.warn('DecayingMean instance is empty, returning NaN', RuntimeWarning)
+            return np.nan
+        return self.mean / (1 - self.decay**self.items)
+
+    def clear(self):
+        """Resets the decaying mean to empty."""
+        self.mean = 0
+        self.items = 0
 
 
 @contextmanager

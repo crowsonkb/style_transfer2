@@ -68,6 +68,7 @@ async def upload(request):
     elif msg['slot'] == 'content':
         current_image = np.uint8(utils.resize_to_fit(image, int(msg['size'])))
         out_msg = SetImages(current_image.shape[:2], SetImages.RESAMPLE, current_image)
+        request.app.its_per_s.clear()
         request.app.content_image = image
         send_websocket(request.app, dict(type='newSize', height=current_image.shape[0],
                                          width=current_image.shape[1]))
@@ -131,6 +132,7 @@ def process_params(app, msg):
             new_size = utils.fit_into_square(app.input_arr.shape[:2], params['size'], True)
             content_image = app.content_image.resize(new_size[::-1], Image.LANCZOS)
             input_image = SetImages.RESAMPLE
+            app.its_per_s.clear()
 
             if app.i == 0:
                 input_image = np.uint8(np.random.uniform(0, 255, new_size + (3,)))
@@ -180,11 +182,9 @@ async def process_messages(app):
             # Update the average iterates per second value
             it_time = time.perf_counter()
             if recv_msg.i:
-                app.its_per_s = 0.9 * app.its_per_s + 0.1 / (it_time - app.last_it_time)
-                true_its_per_s = app.its_per_s / (1 - 0.9**recv_msg.i)
+                app.its_per_s(1 / (it_time - app.last_it_time))
             else:
-                app.its_per_s = 0
-                true_its_per_s = 0
+                app.its_per_s.clear()
             app.i = recv_msg.i
             app.last_it_time = it_time
 
@@ -200,7 +200,7 @@ async def process_messages(app):
             # Notify the client that an iterate was received
             snr = 10 * np.log10(recv_msg.image.size / recv_msg.loss)
             msg = dict(type='iterateInfo', i=recv_msg.i, loss=float(snr),
-                       stepSize=float(step_size), itsPerS=true_its_per_s)
+                       stepSize=float(step_size), itsPerS=app.its_per_s())
             send_websocket(app, msg)
             app.input_arr = recv_msg.image
 
@@ -227,7 +227,7 @@ async def startup_tasks(app):
     app.wss = []
     app.running = False
     app.last_it_time = 0
-    app.its_per_s = 0
+    app.its_per_s = utils.DecayingMean()
     app.params = {}
     init_params(app)
     app.i = 0

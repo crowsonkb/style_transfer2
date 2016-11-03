@@ -13,22 +13,17 @@ class AdamOptimizer:
         self.x = x
         self.opfunc = opfunc
         self.step_size = step_size
-        self.b1 = b1
-        self.b2 = b2
         self.t = 0
-        self.g1 = np.zeros_like(x)
-        self.g2 = np.zeros_like(x)
+        self.g1 = utils.DecayingMean(x.shape, x.dtype, decay=b1)
+        self.g2 = utils.DecayingMean(x.shape, x.dtype, decay=b2)
 
     def step(self):
         """Takes a scaled gradient descent step. Updates x in place, and returns the new value."""
         self.t += 1
         loss, grad = self.opfunc(self.x)
-
-        self.g1[:] = self.b1*self.g1 + (1-self.b1)*grad
-        self.g2[:] = self.b2*self.g2 + (1-self.b2)*grad**2
-        ss = self.step_size * np.sqrt(1-self.b2**self.t) / (1-self.b1**self.t)
-
-        self.x -= ss * self.g1 / (np.sqrt(self.g2) + 1e-8)
+        self.g1(grad)
+        self.g2(grad**2)
+        self.x -= self.step_size * self.g1() / (np.sqrt(self.g2()) + 1e-8)
         return self.x, loss
 
     def resample(self, size, new_x=None):
@@ -39,16 +34,16 @@ class AdamOptimizer:
             size = self.x.shape[2:]
         else:
             self.x = utils.resample_nchw(self.x, size)
-        self.g1 = utils.resample_nchw(self.g1, size)
-        self.g2 = np.maximum(utils.resample_nchw(self.g2, size, method=Image.BILINEAR), 0)
+        self.g1.mean = utils.resample_nchw(self.g1.mean, size)
+        self.g2.mean = np.maximum(0, utils.resample_nchw(self.g2.mean, size,
+                                                         method=Image.BILINEAR))
         return self.x
 
     def objective_changed(self):
         """Advises the optimizer that the objective function has changed and that it should discard
         internal state as appropriate."""
         self.t = 0
-        self.g1[:] = 0
-        self.g2[:] = 0
+        self.g1.clear()
 
 
 class LBFGSOptimizer:
