@@ -94,7 +94,7 @@ $(document).ready(function() {
             case "iterateInfo":
                 $("#iterate-stats").css("display", "block");
                 $("#iterate").text(msg.i);
-                $("#loss").text(msg.loss.toPrecision(4));
+                $("#loss").text(msg.loss.toPrecision(6));
                 $("#step-size").text(msg.stepSize.toPrecision(3));
                 $("#its-per-s").text(msg.itsPerS.toPrecision(3));
                 break;

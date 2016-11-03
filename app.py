@@ -198,8 +198,7 @@ async def process_messages(app):
                         recv_msg.i, recv_msg.loss, step_size)
 
             # Notify the client that an iterate was received
-            snr = 10 * np.log10(recv_msg.image.size / recv_msg.loss)
-            msg = dict(type='iterateInfo', i=recv_msg.i, loss=float(snr),
+            msg = dict(type='iterateInfo', i=recv_msg.i, loss=float(recv_msg.loss),
                        stepSize=float(step_size), itsPerS=app.its_per_s())
             send_websocket(app, msg)
             app.input_arr = recv_msg.image
