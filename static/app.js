@@ -8,9 +8,9 @@ function applyParams() {
     ws.send(JSON.stringify(msg));
 }
 
-function reset() {
-    ws.send(JSON.stringify({type: "reset"}));
-}
+function reset() { ws.send(JSON.stringify({type: "reset"})); }
+
+function restartWorker() { ws.send(JSON.stringify({type: "restartWorker"})); }
 
 var isStart = true;
 function start() {
@@ -35,15 +35,10 @@ function upload(slot) {
     reader.readAsDataURL($("#file-selector")[0].files[0])
 }
 
-function refreshImage() {
-    $("#output-image").attr("src", "/output");
-}
+function refreshImage() { $("#output-image").attr("src", "/output"); }
 
 $(document).ready(function() {
-    function stopEvent(e) {
-        e.stopPropagation();
-        e.preventDefault();
-    }
+    function stopEvent(e) { e.stopPropagation(); e.preventDefault(); }
 
     function makeDropZone(elem, slot) {
         elem.ondragenter = stopEvent;

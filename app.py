@@ -104,6 +104,8 @@ async def websocket(request):
                 image = np.uint8(np.random.uniform(0, 255, app.input_arr.shape))
                 app.input_arr = image
                 app.sock_out.send_pyobj(SetImages(input_image=image, reset_state=True))
+            elif msg['type'] == 'restartWorker':
+                app.sock_out.send_pyobj(Shutdown())
             elif msg['type'] == 'start':
                 app.sock_out.send_pyobj(StartIteration())
                 app.running = True
@@ -219,7 +221,7 @@ async def process_messages(app):
 
 async def monitor_worker(app):
     while True:
-        if app.worker_proc is None or app.worker_proc.poll():
+        if app.worker_proc is None or app.worker_proc.poll() is not None:
             init_arrays(app)
             app.worker_proc = subprocess.Popen([str(WORKER_PATH)])
         await asyncio.sleep(0.1)

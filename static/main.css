@@ -1,3 +1,7 @@
+a:link, a:visited, a:hover, a:active {
+    color: rgb(95, 95, 95);
+}
+
 body {
     background-color: rgb(55, 55, 55);
     color: rgb(255, 255, 255);

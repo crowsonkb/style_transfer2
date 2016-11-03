@@ -309,7 +309,8 @@ class Worker:
                 if self.transfer.is_running:
                     try:
                         msg = self.sock_in.recv_pyobj(zmq.NOBLOCK)
-                        self.process_message(msg)
+                        if self.process_message(msg):
+                            break
                     except zmq.ZMQError:
                         image, loss = self.transfer.step()
                         new_msg = Iterate(image, loss, self.transfer.t)
