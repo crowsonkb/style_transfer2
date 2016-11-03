@@ -2,6 +2,7 @@
 
 import cProfile
 import configparser
+from collections import OrderedDict
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 import inspect
@@ -219,6 +220,25 @@ def shift_by_one(arr, shift, axis):
     else:
         raise ValueError('Unsupported shift or axis')
     return arr
+
+
+class Trace:
+    """A convenience class for recording snapshots of internal values."""
+    def __init__(self):
+        self.data = OrderedDict()
+
+    def __call__(self, name, expr):
+        while name in self.data:
+            name += '_'
+        self.data[name] = expr
+        return expr
+
+    def __str__(self):
+        return ', '.join('%s: %g' % item for item in self.data.items())
+
+    def rms(self, name, expr):
+        self(name, np.sqrt(np.mean(expr**2)))
+        return expr
 
 
 def tv_norm(x, beta=2):

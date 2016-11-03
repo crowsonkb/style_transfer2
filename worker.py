@@ -6,6 +6,7 @@ import logging
 import os
 from pathlib import Path
 import sys
+import time
 
 import numpy as np
 import pandas as pd
@@ -132,6 +133,7 @@ class StyleTransfer:
         self.optimizer_cls = optimizers.LBFGSOptimizer
         self.step_size = SetOptimizer.step_sizes['lbfgs']
         self.norms = {k: {} for k in 'cds'}
+        self.traces = []
 
     def objective_changed(self):
         if self.optimizer is not None:
@@ -208,6 +210,7 @@ class StyleTransfer:
         # Get list of layers to provide gradients to
         nonzeros = abs(self.weights) > 1e-15
         layers = self.weights.index[abs(nonzeros.sum(axis=1)) > 1e-15]
+        t = utils.Trace()
 
         # Compute the loss and gradient at each of those layers
         current_feats = self.model.forward(x, layers)
@@ -217,6 +220,7 @@ class StyleTransfer:
             w = self.weights
             cw, sw, dw = w['content'][layer], w['style'][layer], w['deepdream'][layer]
             diffs[layer] = np.zeros_like(current_feats[layer])
+            n_ = ['%s_%s_%s' % (layer, lt, lg) for lt in 'dsc' for lg in ('grad', 'loss')].pop
 
             # Content gradient
             if abs(cw) > 1e-15:
@@ -224,8 +228,8 @@ class StyleTransfer:
                 c_grad *= 2 / c_grad.size
                 if layer not in self.norms['c']:
                     self.norms['c'][layer] = np.sqrt(np.mean(c_grad**2))
-                loss += cw * np.mean(c_grad**2) / self.norms['c'][layer]
-                diffs[layer] += cw * c_grad / self.norms['c'][layer]
+                loss += t(n_(), cw * np.mean(c_grad**2) / self.norms['c'][layer])
+                diffs[layer] += t.rms(n_(), cw * c_grad / self.norms['c'][layer])
 
             # Style gradient
             if abs(sw) > 1e-15:
@@ -235,7 +239,8 @@ class StyleTransfer:
                 s_grad = (2 / feat.size) * np.dot(gram_diff, feat).reshape((1, n, mh, mw))
                 if layer not in self.norms['s']:
                     self.norms['s'][layer] = np.sqrt(np.mean(s_grad**2))
-                loss += sw * np.mean(gram_diff**2) / self.norms['s'][layer]
+                loss += t(n_(), sw * np.mean(gram_diff**2) / self.norms['s'][layer])
+                t.rms(n_(), sw / self.norms['s'][layer] * s_grad)
                 utils.axpy(sw / self.norms['s'][layer], s_grad, diffs[layer])
 
             # Deep Dream gradient
@@ -243,31 +248,43 @@ class StyleTransfer:
                 d_grad = -2 * current_feats[layer] / current_feats[layer].size
                 if layer not in self.norms['d']:
                     self.norms['d'][layer] = np.sqrt(np.mean(d_grad**2))
-                loss -= dw * np.mean(current_feats[layer]**2) / self.norms['d'][layer]
-                diffs[layer] += dw * d_grad / self.norms['d'][layer]
+                loss -= t(n_(), dw * np.mean(current_feats[layer]**2) / self.norms['d'][layer])
+                diffs[layer] += t.rms(n_(), dw * d_grad / self.norms['d'][layer])
 
+        n_ = ['%s_%s' % (lt, lg) for lg in ('grad', 'loss') for lt in 'pt'].pop
         # Get the total variation loss and gradient
         tv_loss, tv_grad = utils.tv_norm(x / 255, self.params['tv_power'])
-        loss += self.params['tv'] * tv_loss
+        loss += t(n_(), self.params['tv'] * tv_loss)
 
         p_loss, p_grad = utils.p_norm(x / 255, self.params['p_power'])
-        loss += self.params['p'] * p_loss
+        loss += t(n_(), self.params['p'] * p_loss)
 
         if not return_grad:
-            return loss
+            self.traces.append(t)
+            return t('loss', loss)
 
         # Get the combined gradient
-        grad = self.model.backward(diffs).copy()
-        grad += self.params['tv'] * tv_grad
-        grad += self.params['p'] * p_grad
+        grad = t.rms('sc_grad', self.model.backward(diffs).copy())
+        grad += t.rms(n_(), self.params['tv'] * tv_grad)
+        grad += t.rms(n_(), self.params['p'] * p_grad)
 
-        return loss, grad
+        t('time', time.perf_counter())
+        self.traces.append(t)
+        return t('loss', loss), t.rms('grad', grad)
 
     def step(self):
         """Returns the next iterate and the current value of the loss function."""
         self.t += 1
         x, loss = self.optimizer.step()
-        return self.model.deprocess(x), loss
+        # logger.debug('step %d, %s', self.t, self.traces[-1])
+        t = self.traces[-1]
+        t('t', self.t)
+        return self.model.deprocess(t.rms('step', x)), loss
+
+    def write_trace(self, filename):
+        df = pd.DataFrame(t.data for t in self.traces)
+        df.index.name = 'step'
+        df.to_csv(filename)
 
 
 class Worker:
@@ -303,6 +320,8 @@ class Worker:
                     break
         except KeyboardInterrupt:
             self.sock_out.send_pyobj(Shutdown())
+        finally:
+            self.transfer.write_trace('trace.csv')
 
     def process_message(self, msg):
         def is_image(obj):
@@ -361,6 +380,7 @@ def main():
     utils.setup_logging(debug)
 
     Worker(config).run()
+
     logger.info('Shutting down worker process.')
 
 
