@@ -125,6 +125,7 @@ async def websocket(request):
             elif msg['type'] == 'pause':
                 app.sock_out.send_pyobj(PauseIteration())
                 app.running = False
+                send_websocket(app, dict(type='state', running=app.running))
             elif msg['type'] == 'reset':
                 image = np.uint8(np.random.uniform(0, 255, app.input_arr.shape))
                 app.input_arr = image
@@ -136,6 +137,7 @@ async def websocket(request):
             elif msg['type'] == 'start':
                 app.sock_out.send_pyobj(StartIteration())
                 app.running = True
+                send_websocket(app, dict(type='state', running=app.running))
             else:
                 logger.error('Received an WebSocket message of unknown type.')
         else:
