@@ -1,7 +1,20 @@
+import numpy as np
 import optimizers
 
 
-class Iterate:
+class Message:
+    """The base class for the messages exchanged via PyZMQ's send_pyobj()."""
+    def __repr__(self):
+        def repr_value(v):
+            if isinstance(v, np.ndarray):
+                return '<ndarray, shape: %s, dtype: %s>' % (v.shape, v.dtype)
+            return repr(v)
+
+        args = ['%s=%s' % (k, repr_value(v)) for k, v in sorted(self.__dict__.items())]
+        return self.__class__.__name__ + '(' + ', '.join(args) + ')'
+
+
+class Iterate(Message):
     """A notification from the worker to the app that a new iterate has been produced. It contains
     the image as a NumPy float32 (or convertable-to-float32, since the receiver will call
     np.float32() on all arrays received) array in HxWx3 layout with RGB channel order. 'i' is the
@@ -12,12 +25,12 @@ class Iterate:
         self.i = i
 
 
-class PauseIteration:
+class PauseIteration(Message):
     """Signals the worker to pause iteration."""
     pass
 
 
-class SetImages:
+class SetImages(Message):
     """A request from the app to the worker to set the image in a specific slot. Slots include
     'content', 'style', 'input', etc. An image parameter should be a NumPy array in HxWx3 layout
     with RGB channel order.
@@ -39,7 +52,7 @@ class SetImages:
         self.style_image = style_image
         self.reset_state = reset_state
 
-class SetOptimizer:
+class SetOptimizer(Message):
     """A request from the app to the worker to set the optimizer type and optionally step size.
     Step sizes will be taken from the per-optimizer defaults in this message type if not
     specified."""
@@ -54,7 +67,7 @@ class SetOptimizer:
         self.step_size = step_size
 
 
-class SetWeights:
+class SetWeights(Message):
     """A request from the app to the worker to set the loss weights for each combination of layer
     and loss type. Loss types can be divided into two categories: those which are only valid for
     layers not the input layer, and those which are only valid for the input layer.
@@ -74,17 +87,17 @@ class SetWeights:
         self.params = params
 
 
-class Shutdown:
+class Shutdown(Message):
     """Signals the receiving process to shut down."""
     pass
 
 
-class StartIteration:
+class StartIteration(Message):
     """Signals the worker to start iteration."""
     pass
 
 
-class WorkerReady:
+class WorkerReady(Message):
     """Signals the app that the worker is ready to receive messages and should be initialized."""
     def __init__(self, send_images=False):
         self.send_images = send_images

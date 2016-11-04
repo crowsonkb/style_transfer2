@@ -136,12 +136,15 @@ def process_params(app, msg):
         if params['size'] != max(app.input_arr.shape):
             new_size = utils.fit_into_square(app.input_arr.shape[:2], params['size'], True)
             content_image = app.content_image.resize(new_size[::-1], Image.LANCZOS)
-            input_image = SetImages.RESAMPLE
             app.its_per_s.clear()
 
             if app.i == 0:
                 input_image = np.uint8(np.random.uniform(0, 255, new_size + (3,)))
                 app.input_arr = input_image
+            else:
+                input_image = utils.resample_hwc(app.input_arr, new_size)
+                app.input_arr = input_image
+
             msg_out = SetImages(new_size, input_image, np.uint8(content_image))
             app.sock_out.send_pyobj(msg_out)
             send_websocket(app, dict(type='newSize', height=new_size[0], width=new_size[1]))
