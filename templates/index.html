@@ -13,8 +13,13 @@
     <span id="its-per-s">[]</span> its/s</div><br><br>
 
     Drag and drop to set input images:<br>
-    <div class="dropzone" id="content-drop"><span class="replace"></span></div>
-    <div class="dropzone" id="style-drop"><span class="replace"></span></div>
+
+    <label for="content-input"><div class="dropzone" id="content-drop"><span class="replace"></span></div></label>
+    <input id="content-input" type="file" accept="image/*" style="position: fixed; top: -100em">
+
+    <label for="style-input"><div class="dropzone" id="style-drop"><span class="replace"></span></div></label>
+    <input id="style-input" type="file" accept="image/*" style="position: fixed; top: -100em">
+
     <br style="clear: both;">
     <span class="dropzone-label">Content image</span>
     <span class="dropzone-label">Style image</span>
