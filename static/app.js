@@ -54,7 +54,23 @@ $(document).ready(function() {
             var data = null;
             reader.onload = function(e) {
                 var data = e.target.result;
-                var size = $("#resize-to").val()
+
+                // Set the inside of the dropzone to a thumbnail
+                var img = $("<img>");
+                var h = null;
+                var w = null;
+                img[0].onload = function(e) {
+                    h = img[0].naturalHeight;
+                    w = img[0].naturalWidth;
+                    img.attr("class", "replace");
+                    var scale = parseInt($(elem).css("width")) / Math.max(h, w);
+                    img.attr("height", h * scale);
+                    img.attr("width", w * scale);
+                    $("#" + elem.id + " .replace").replaceWith(img);
+                };
+                img.attr("src", data);
+
+                var size = $("#resize-to").val();
                 var msg = {size: size, slot: slot, data: data};
                 $.post("/upload", msg);
             };
@@ -66,11 +82,11 @@ $(document).ready(function() {
     body.ondragenter = stopEvent;
     body.ondragover = stopEvent;
     body.ondrop = stopEvent;
-    makeDropZone($("#content-drop")[0], 'content');
-    makeDropZone($("#style-drop")[0], 'style');
-    makeDropZone($("#output-image")[0], 'input');
+    makeDropZone($("#content-drop")[0], "content");
+    makeDropZone($("#style-drop")[0], "style");
+    makeDropZone($("#output-image")[0], "input");
 
-    // Wait one second after loading to refresh output image
+    // Wait 100ms after loading to refresh output image
     var update_every = 100;
     $("#output-image").on("load", function() {
         setTimeout(refreshImage, update_every);

@@ -27,13 +27,17 @@ textarea {
 }
 
 .dropzone {
-    width: 225px;
+    width: 150px;
     height: 150px;
     line-height: 150px;
     border: 1px #ddd dashed;
     text-align: center;
     margin: 8px;
     float: left;
+}
+
+.dropzone img {
+    vertical-align: middle;
 }
 
 #content {
