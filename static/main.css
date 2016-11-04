@@ -34,6 +34,8 @@ textarea {
     text-align: center;
     margin: 8px;
     float: left;
+    padding: 1px;
+    background-color: rgb(44, 44, 44);
 }
 
 .dropzone img {
@@ -41,7 +43,7 @@ textarea {
 }
 
 .dropzone-label {
-    width: 151px;
+    width: 155px;
     text-align: center;
     margin: 0 8px 8px 8px;
     float: left;
