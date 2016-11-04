@@ -133,7 +133,7 @@ $(document).ready(function() {
                     setWithDataURI(msg.content, $("#content-drop")[0]);
                 }
                 if (msg.style) {
-                    setWithDataURI(msg.style, $("#style-drop")[0]);                    
+                    setWithDataURI(msg.style, $("#style-drop")[0]);
                 }
                 break;
             }
