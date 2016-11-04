@@ -102,8 +102,8 @@ class SetWeights(Message):
                 options influencing their action i.e. exponents.
             i.e. params['tv'].
     """
-    loss_names = ('content', 'style')
-    scalar_loss_names = ('tv', 'p', 'p_power')
+    loss_names = ('content', 'style', 'deepdream')
+    scalar_loss_names = ('tv', 'tv_power', 'p', 'p_power')
 
     def __init__(self, weights, params):
         self.weights = weights
