@@ -40,12 +40,21 @@ textarea {
     vertical-align: middle;
 }
 
+.dropzone-label {
+    width: 151px;
+    text-align: center;
+    margin: 0 8px 8px 8px;
+    float: left;
+    font-size: 80%;
+}
+
 #content {
     margin: 16px;
 }
 
 #iterate-stats {
     display: none;
+    font-size: 80%;
 }
 
 #resize-to {
