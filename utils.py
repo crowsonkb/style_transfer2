@@ -157,12 +157,13 @@ def setup_exceptions(mode='Plain', color_scheme='Neutral'):
 
 def setup_logging(debug=False):
     """Sets the logging configuration for the current process."""
-    fmt = '%(asctime)s.%(msecs)03d %(filename)s %(levelname)s: %(message)s'
+    fmt = '%(asctime)s.%(msecs)03d %(process)d %(name)s %(levelname)s: %(message)s'
     datefmt = '%H:%M:%S'
     if debug:
         logging.basicConfig(level=logging.DEBUG, format=fmt, datefmt=datefmt)
     else:
-        logging.basicConfig(level=logging.DEBUG, format=fmt, datefmt=datefmt)
+        logging.basicConfig(level=logging.INFO, format=fmt, datefmt=datefmt)
+    logging.getLogger('aiohttp.access').setLevel(logging.WARNING)
     logging.captureWarnings(True)
 
 

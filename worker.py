@@ -21,7 +21,7 @@ utils.setup_exceptions()
 MODULE_DIR = Path(__file__).parent.resolve()
 
 ctx = zmq.Context()
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('worker')
 
 caffe_import_msg = '''
 ImportError: Caffe was not found in PYTHONPATH. Please edit config.ini to

@@ -33,7 +33,7 @@ STATIC_PATH = MODULE_DIR / 'static'
 TEMPLATES_PATH = MODULE_DIR / 'templates'
 WORKER_PATH = MODULE_DIR / 'worker.py'
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('app')
 
 ctx = zmq.asyncio.Context()
 loop = zmq.asyncio.ZMQEventLoop()
