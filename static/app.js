@@ -40,6 +40,23 @@ function refreshImage() { $("#output-image").attr("src", "/output"); }
 $(document).ready(function() {
     function stopEvent(e) { e.stopPropagation(); e.preventDefault(); }
 
+    function setWithDataURI(uri, elem) {
+        // Set the inside of the dropzone to a thumbnail
+        var img = $("<img>");
+        var h = null;
+        var w = null;
+        img[0].onload = function(e) {
+            h = img[0].naturalHeight;
+            w = img[0].naturalWidth;
+            img.attr("class", "replace");
+            var scale = parseInt($(elem).css("width")) / Math.max(h, w);
+            img.attr("height", h * scale);
+            img.attr("width", w * scale);
+            $("#" + elem.id + " .replace").replaceWith(img);
+        };
+        img.attr("src", uri);
+    }
+
     function makeDropZone(elem, slot) {
         elem.ondragenter = stopEvent;
         elem.ondragover = stopEvent;
@@ -54,22 +71,7 @@ $(document).ready(function() {
             var data = null;
             reader.onload = function(e) {
                 var data = e.target.result;
-
-                // Set the inside of the dropzone to a thumbnail
-                var img = $("<img>");
-                var h = null;
-                var w = null;
-                img[0].onload = function(e) {
-                    h = img[0].naturalHeight;
-                    w = img[0].naturalWidth;
-                    img.attr("class", "replace");
-                    var scale = parseInt($(elem).css("width")) / Math.max(h, w);
-                    img.attr("height", h * scale);
-                    img.attr("width", w * scale);
-                    $("#" + elem.id + " .replace").replaceWith(img);
-                };
-                img.attr("src", data);
-
+                setWithDataURI(data, elem);
                 var size = $("#resize-to").val();
                 var msg = {size: size, slot: slot, data: data};
                 $.post("/upload", msg);
@@ -124,6 +126,14 @@ $(document).ready(function() {
                 } else {
                     $("#start").text("Start");
                     isStart = true;
+                }
+                break;
+            case "thumbnails":
+                if (msg.content) {
+                    setWithDataURI(msg.content, $("#content-drop")[0]);
+                }
+                if (msg.style) {
+                    setWithDataURI(msg.style, $("#style-drop")[0]);                    
                 }
                 break;
             }

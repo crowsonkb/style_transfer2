@@ -56,6 +56,7 @@ async def upload(request):
     msg = await request.post()
     data = binascii.a2b_base64(msg['data'].partition(',')[2])
     image = Image.open(io.BytesIO(data)).convert('RGB')
+    thumbnail_msg = None
     if msg['slot'] == 'input':
         current_image = np.uint8(image.resize(request.app.input_arr.shape[:2][::-1],
                                               Image.LANCZOS))
@@ -66,17 +67,37 @@ async def upload(request):
         request.app.style_size = msg['size']
         out_msg = SetImages(style_image=current_image)
         request.app.style_image = image
+        make_thumbnails(request.app)
+        thumbnail_msg = dict(type='thumbnails', style=request.app.style_image.thumbnail_url_)
     elif msg['slot'] == 'content':
         current_image = np.uint8(utils.resize_to_fit(image, int(msg['size'])))
         out_msg = SetImages(current_image.shape[:2], SetImages.RESAMPLE, current_image)
         request.app.its_per_s.clear()
         request.app.content_image = image
+        make_thumbnails(request.app)
         send_websocket(request.app, dict(type='newSize', height=current_image.shape[0],
                                          width=current_image.shape[1]))
         request.app.params['size'] = max(current_image.shape[:2])
         send_websocket(request.app, dict(type='newParams', params=get_params(app)))
+        thumbnail_msg = dict(type='thumbnails', content=request.app.content_image.thumbnail_url_)
     request.app.sock_out.send_pyobj(out_msg)
+    if thumbnail_msg is not None:
+        send_websocket(request.app, thumbnail_msg)
     return web.Response()
+
+
+def make_thumbnails(app, size=300):
+    header = 'data:image/jpeg;base64,'
+    if not hasattr(app.content_image, 'thumbnail_'):
+        small = utils.resize_to_fit(app.content_image, size, scale_up=False)
+        buf = io.BytesIO()
+        small.save(buf, format='jpeg', quality=85)
+        app.content_image.thumbnail_url_ = header + binascii.b2a_base64(buf.getvalue()).decode()
+    if not hasattr(app.style_image, 'thumbnail_'):
+        small = utils.resize_to_fit(app.style_image, size, scale_up=False)
+        buf = io.BytesIO()
+        small.save(buf, format='jpeg', quality=85)
+        app.style_image.thumbnail_url_ = header + binascii.b2a_base64(buf.getvalue()).decode()
 
 
 async def websocket(request):
@@ -89,6 +110,10 @@ async def websocket(request):
     h, w = app.input_arr.shape[:2]
     send_websocket(app, dict(type='newSize', height=h, width=w))
     send_websocket(app, dict(type='state', running=app.running))
+    make_thumbnails(app)
+    send_websocket(app, dict(type='thumbnails',
+                             content=app.content_image.thumbnail_url_,
+                             style=app.style_image.thumbnail_url_))
 
     async for msg in ws:
         if msg.type == aiohttp.WSMsgType.TEXT:
