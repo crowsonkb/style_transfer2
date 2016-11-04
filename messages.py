@@ -39,7 +39,6 @@ class SetImages:
         self.style_image = style_image
         self.reset_state = reset_state
 
-
 class SetOptimizer:
     """A request from the app to the worker to set the optimizer type and optionally step size.
     Step sizes will be taken from the per-optimizer defaults in this message type if not
@@ -87,4 +86,5 @@ class StartIteration:
 
 class WorkerReady:
     """Signals the app that the worker is ready to receive messages and should be initialized."""
-    pass
+    def __init__(self, send_images=False):
+        self.send_images = send_images

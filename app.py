@@ -105,6 +105,7 @@ async def websocket(request):
                 app.input_arr = image
                 app.sock_out.send_pyobj(SetImages(input_image=image, reset_state=True))
             elif msg['type'] == 'restartWorker':
+                app.running = False
                 app.sock_out.send_pyobj(Shutdown())
             elif msg['type'] == 'start':
                 app.sock_out.send_pyobj(StartIteration())
@@ -173,6 +174,10 @@ def init_arrays(app):
         w, h = content.size
         app.input_arr = np.uint8(np.random.uniform(0, 255, (h, w, 3)))
 
+    if max(app.input_arr.shape[:2]) != app.params['size']:
+        size = utils.fit_into_square(app.input_arr.shape[:2], app.params['size'])
+        app.input_arr = utils.resample_hwc(app.input_arr, size)
+
     msg = SetImages(None, app.input_arr, np.uint8(content), np.uint8(style))
     app.sock_out.send_pyobj(msg)
 
@@ -215,9 +220,10 @@ async def process_messages(app):
             raise KeyboardInterrupt()
 
         elif isinstance(recv_msg, WorkerReady):
+            if recv_msg.send_images:
+                init_arrays(app)
             app.running = False
             send_websocket(app, dict(type='state', running=app.running))
-            init_arrays(app)
 
         else:
             logger.error('Unknown message type received over ZeroMQ.')
@@ -242,6 +248,7 @@ async def startup_tasks(app):
     app.its_per_s = utils.DecayingMean()
     app.params = {}
     init_params(app)
+    init_arrays(app)
     app.i = 0
     app.worker_proc = None
     app.mw_future = asyncio.ensure_future(monitor_worker(app))

@@ -120,6 +120,7 @@ class StyleTransfer:
     def __init__(self, model):
         self.model = model
         self.is_running = False
+        self.is_starting = False
         self.t = 0
         self.input = None
         self.content = None
@@ -141,12 +142,14 @@ class StyleTransfer:
 
     def pause(self):
         self.is_running = False
+        self.is_starting = False
 
     def resample_input(self, size):
         if self.input is not None and self.optimizer is not None:
             self.input = self.optimizer.resample(size)
         else:
             self.input = np.zeros((1, 3) + size, np.float32)
+        self._start()
         self.objective_changed()
 
     def resample_content(self, size):
@@ -156,18 +159,27 @@ class StyleTransfer:
             self.content = np.zeros((1, 3) + size, np.float32)
         features = self.model.forward(self.content)
         self.features = {k: v.copy() for k, v in features.items()}
+        self._start()
         self.objective_changed()
 
     def reset(self):
         self.norms = {k: {} for k in self.norms}
         self.t = 0
-        assert self.input is not None, "No input image provided yet."
         self.optimizer = self.optimizer_cls(self.input, self.opfunc, step_size=self.step_size)
 
     def start(self):
-        if self.optimizer is None:
-            self.reset()
-        self.is_running = True
+        self.is_starting = True
+        self._start()
+        return self.is_running
+
+    def _start(self):
+        if self.is_starting:
+            if self.input is not None and self.content is not None and self.grams:
+                if self.input.shape == self.content.shape:
+                    if self.optimizer is None:
+                        self.reset()
+                    self.is_starting = False
+                    self.is_running = True
 
     def set_input(self, image):
         image = self.model.preprocess(image)
@@ -175,15 +187,18 @@ class StyleTransfer:
             self.input[:] = image
             self.objective_changed()
         elif self.optimizer is not None:
-            self.optimizer.resample(None, new_x=image)
+            self.input = self.optimizer.resample(None, new_x=image)
+            self._start()
         else:
             self.input = image
             self.reset()
+            self._start()
 
     def set_content(self, image):
         self.content = self.model.preprocess(image)
         features = self.model.forward(self.content)
         self.features = {k: v.copy() for k, v in features.items()}
+        self._start()
         self.objective_changed()
 
     def set_style(self, image):
@@ -192,6 +207,7 @@ class StyleTransfer:
         self.grams = {}
         for layer, feat in features.items():
             self.grams[layer] = gram_matrix(feat)
+        self._start()
         self.objective_changed()
 
     def set_step_size(self, step_size):
@@ -358,7 +374,8 @@ class Worker:
             return True
 
         elif isinstance(msg, StartIteration):
-            self.transfer.start()
+            if not self.transfer.start():
+                self.sock_out.send_pyobj(WorkerReady(send_images=True))
 
         elif isinstance(msg, PauseIteration):
             self.transfer.pause()
