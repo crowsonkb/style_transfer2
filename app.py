@@ -291,7 +291,7 @@ def main():
     """The main function."""
     debug = app.config.getboolean('debug', False)
     if debug:
-        utils.setup_exceptions(mode='Verbose')
+        utils.setup_exceptions(mode='Context')
     utils.setup_logging(debug)
 
     try:

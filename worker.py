@@ -397,7 +397,7 @@ def main():
 
     debug = config.getboolean('debug', False)
     if debug:
-        utils.setup_exceptions(mode='Verbose')
+        utils.setup_exceptions(mode='Context')
     utils.setup_logging(debug)
 
     Worker(config).run()
