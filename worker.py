@@ -241,11 +241,11 @@ class StyleTransfer:
 
             # Content gradient
             if abs(cw) > 1e-15:
-                c_grad = current_feats[layer] - self.features[layer]
-                c_grad *= 2 / c_grad.size
+                c_diff = current_feats[layer] - self.features[layer]
+                c_grad = (2 / c_diff.size) * c_diff
                 if layer not in cn:
                     cn[layer] = np.sqrt(np.mean(c_grad**2))
-                loss += t(name('c', 'loss'), cw * np.mean(c_grad**2) / cn[layer])
+                loss += t(name('c', 'loss'), cw * np.mean(c_diff**2) / cn[layer])
                 diffs[layer] += t.rms(name('c', 'grad'), cw * c_grad / cn[layer])
 
             # Style gradient
@@ -262,7 +262,7 @@ class StyleTransfer:
 
             # Deep Dream gradient
             if abs(dw) > 1e-15:
-                d_grad = -2 * current_feats[layer] / current_feats[layer].size
+                d_grad = (-2 / current_feats[layer].size) * current_feats[layer]
                 if layer not in dn:
                     dn[layer] = np.sqrt(np.mean(d_grad**2))
                 loss += t(name('d', 'loss'), -dw * np.mean(current_feats[layer]**2) / dn[layer])
