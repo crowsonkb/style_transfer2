@@ -232,10 +232,10 @@ def process_iterate(app, recv_msg):
         step_size = np.sqrt(np.mean(diff**2))
 
     logger.info('iterate %d received, loss: %g, step size: %g',
-                recv_msg.i, recv_msg.loss, step_size)
+                recv_msg.i, recv_msg.trace['loss'], step_size)
 
     # Notify the client that an iterate was received
-    msg = dict(type='iterateInfo', i=recv_msg.i, loss=float(recv_msg.loss),
+    msg = dict(type='iterateInfo', i=recv_msg.i, trace=recv_msg.trace,
                stepSize=float(step_size), itsPerS=app.its_per_s())
     send_websocket(app, msg)
     app.input_arr = recv_msg.image

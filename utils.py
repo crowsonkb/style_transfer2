@@ -239,7 +239,16 @@ class Trace:
     def __call__(self, name, expr):
         while name in self.data:
             name += '_'
-        self.data[name] = expr
+        if isinstance(expr, np.floating):
+            self.data[name] = float(expr)
+        elif isinstance(expr, np.integer):
+            self.data[name] = int(expr)
+        elif isinstance(expr, np.generic):
+            warnings.warn('Did not convert NumPy scalar to Python scalar, may not be pickleable',
+                          RuntimeWarning)
+            self.data[name] = expr
+        else:
+            self.data[name] = expr
         return expr
 
     def __str__(self):

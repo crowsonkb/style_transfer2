@@ -289,13 +289,13 @@ class StyleTransfer:
         return t('loss', loss), t.rms('grad', grad)
 
     def step(self):
-        """Returns the next iterate and the current value of the loss function."""
+        """Returns the next iterate and a trace of internal loss function values."""
         self.t += 1
-        x, loss = self.optimizer.step()
+        x, _ = self.optimizer.step()
         # logger.debug('step %d, %s', self.t, self.traces[-1])
         t = self.traces[-1]
-        t('t', self.t)
-        return self.model.deprocess(t.rms('step', x)), loss
+        t('fevals', self.t)
+        return self.model.deprocess(x), t.data
 
     def write_trace(self, filename):
         df = pd.DataFrame(t.data for t in self.traces)
@@ -331,8 +331,8 @@ class Worker:
                                 should_stop = True
                                 break
                     except zmq.ZMQError:
-                        image, loss = self.transfer.step()
-                        new_msg = Iterate(image, loss, self.transfer.t)
+                        image, trace = self.transfer.step()
+                        new_msg = Iterate(image, self.transfer.t, trace)
                         self.sock_out.send_pyobj(new_msg)
                     continue
                 msg = self.sock_in.recv_pyobj()
