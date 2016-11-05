@@ -235,17 +235,18 @@ class StyleTransfer:
         for layer in layers:
             w = self.weights
             cw, sw, dw = w['content'][layer], w['style'][layer], w['deepdream'][layer]
+            cn, sn, dn = self.norms['c'], self.norms['s'], self.norms['d']
+            name = lambda a, b: '%s_%s_%s' % (layer, a, b)
             diffs[layer] = np.zeros_like(current_feats[layer])
-            n_ = ['%s_%s_%s' % (layer, lt, lg) for lt in 'dsc' for lg in ('grad', 'loss')].pop
 
             # Content gradient
             if abs(cw) > 1e-15:
                 c_grad = current_feats[layer] - self.features[layer]
                 c_grad *= 2 / c_grad.size
-                if layer not in self.norms['c']:
-                    self.norms['c'][layer] = np.sqrt(np.mean(c_grad**2))
-                loss += t(n_(), cw * np.mean(c_grad**2) / self.norms['c'][layer])
-                diffs[layer] += t.rms(n_(), cw * c_grad / self.norms['c'][layer])
+                if layer not in cn:
+                    cn[layer] = np.sqrt(np.mean(c_grad**2))
+                loss += t(name('c', 'loss'), cw * np.mean(c_grad**2) / cn[layer])
+                diffs[layer] += t.rms(name('c', 'grad'), cw * c_grad / cn[layer])
 
             # Style gradient
             if abs(sw) > 1e-15:
@@ -253,21 +254,23 @@ class StyleTransfer:
                 gram_diff = gram_matrix(current_feats[layer]) - self.grams[layer]
                 feat = current_feats[layer].reshape((n, mh * mw))
                 s_grad = (2 / gram_diff.size) * np.dot(gram_diff, feat).reshape((1, n, mh, mw))
-                if layer not in self.norms['s']:
-                    self.norms['s'][layer] = np.sqrt(np.mean(s_grad**2))
-                loss += t(n_(), sw * np.mean(gram_diff**2) / self.norms['s'][layer])
-                t.rms(n_(), sw / self.norms['s'][layer] * s_grad)
-                utils.axpy(sw / self.norms['s'][layer], s_grad, diffs[layer])
+                if layer not in sn:
+                    sn[layer] = np.sqrt(np.mean(s_grad**2))
+                loss += t(name('s', 'loss'), sw * np.mean(gram_diff**2) / sn[layer])
+                t.rms(name('s', 'grad'), sw / sn[layer] * s_grad)
+                utils.axpy(sw / sn[layer], s_grad, diffs[layer])
 
             # Deep Dream gradient
             if abs(dw) > 1e-15:
                 d_grad = -2 * current_feats[layer] / current_feats[layer].size
-                if layer not in self.norms['d']:
-                    self.norms['d'][layer] = np.sqrt(np.mean(d_grad**2))
-                loss -= t(n_(), dw * np.mean(current_feats[layer]**2) / self.norms['d'][layer])
-                diffs[layer] += t.rms(n_(), dw * d_grad / self.norms['d'][layer])
+                if layer not in dn:
+                    dn[layer] = np.sqrt(np.mean(d_grad**2))
+                loss += t(name('d', 'loss'), -dw * np.mean(current_feats[layer]**2) / dn[layer])
+                diffs[layer] += t.rms(name('d', 'grad'), dw * d_grad / dn[layer])
 
+        t('scd_loss', loss)
         n_ = ['%s_%s' % (lt, lg) for lg in ('grad', 'loss') for lt in 'pt'].pop
+
         # Get the total variation loss and gradient
         tv_loss, tv_grad = utils.tv_norm(x / 255, self.params['tv_power'])
         loss += t(n_(), self.params['tv'] * tv_loss)
@@ -280,7 +283,7 @@ class StyleTransfer:
             return t('loss', loss)
 
         # Get the combined gradient
-        grad = t.rms('sc_grad', self.model.backward(diffs).copy())
+        grad = t.rms('scd_grad', self.model.backward(diffs).copy())
         grad += t.rms(n_(), self.params['tv'] * tv_grad)
         grad += t.rms(n_(), self.params['p'] * p_grad)
 

@@ -16,6 +16,10 @@ function restartWorker() {
     ws.send(JSON.stringify({type: "restartWorker"}));
 }
 
+function showTrace() {
+    $("#trace").css("display", "");
+}
+
 var isStart = true;
 function start() {
     if (isStart) {
@@ -123,10 +127,17 @@ $(document).ready(function() {
 
             switch (msg.type) {
                 case "iterateInfo":
-                    $("#iterate-stats").css("display", "block");
+                    $("#iterate-stats").css("display", "");
                     $("#iterate").text(msg.i);
                     $("#step-size").text(msg.stepSize.toPrecision(3));
                     $("#its-per-s").text(msg.itsPerS.toPrecision(3));
+
+                    var trace_str = "";
+                    for (key in msg.trace) {
+                        trace_str += key + ": " + msg.trace[key].toPrecision(4);
+                        trace_str += "<br>";
+                    }
+                    $("#trace-placeholder").html(trace_str);
                     break;
                 case "newParams":
                     $("#params").val(msg.params);

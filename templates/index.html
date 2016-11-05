@@ -9,8 +9,9 @@
     <button id="start" onclick="start()">Start</button>
     <button id="start" onclick="reset()">Reset image</button><br>
 
-    <div id="iterate-stats">Iterate <span id="iterate">[]</span>, difference from last iterate: <span id="step-size">[]</span><br>
-    <span id="its-per-s">[]</span> iterates/s</div><br><br>
+    <div id="iterate-stats" class="stats" style="display: none">Iterate <span id="iterate">[]</span>, difference from last iterate: <span id="step-size">[]</span><br>
+    <span id="its-per-s">[]</span> iterates/s</div><br>
+    <div id="trace" class="stats" style="display: none">Trace: <br><span id="trace-placeholder"></span></div><br><br>
 
     Drag and drop to set input images:<br>
 
@@ -30,5 +31,7 @@
     <textarea id="params" rows="12" cols="70"></textarea><br>
     <button onclick="applyParams()">Apply params</button>
     <button onclick="applyParams(); reset()">Apply and reset</button><br><br>
+
     <a href="#" onclick="restartWorker()">Restart worker</a>
+    <a href="#" onclick="showTrace()">Show trace</a>
 {% endblock %}
