@@ -8,9 +8,13 @@ function applyParams() {
     ws.send(JSON.stringify(msg));
 }
 
-function reset() { ws.send(JSON.stringify({type: "reset"})); }
+function reset() {
+    ws.send(JSON.stringify({type: "reset"}));
+}
 
-function restartWorker() { ws.send(JSON.stringify({type: "restartWorker"})); }
+function restartWorker() {
+    ws.send(JSON.stringify({type: "restartWorker"}));
+}
 
 var isStart = true;
 function start() {
@@ -35,13 +39,14 @@ function upload(slot) {
     reader.readAsDataURL($("#file-selector")[0].files[0])
 }
 
-function refreshImage() { $("#output-image").attr("src", "/output"); }
+function refreshImage() {
+    $("#output-image").attr("src", "/output");
+}
 
-function setWithDataURI(uri, elem) {
+function setWithDataURL(url, elem) {
     // Set the inside of the dropzone to a thumbnail
     var img = $("<img>");
-    var h = null;
-    var w = null;
+    var h, w;
     img[0].onload = function(e) {
         h = img[0].naturalHeight;
         w = img[0].naturalWidth;
@@ -51,7 +56,7 @@ function setWithDataURI(uri, elem) {
         img.attr("width", w * scale);
         $("#" + elem.id + " .replace").replaceWith(img);
     };
-    img.attr("src", uri);
+    img.attr("src", url);
 }
 
 function uploadFile(files, elem, slot) {
@@ -59,7 +64,7 @@ function uploadFile(files, elem, slot) {
     var data = null;
     reader.onload = function(e) {
         var data = e.target.result;
-        setWithDataURI(data, elem);
+        setWithDataURL(data, elem);
         var size = $("#resize-to").val();
         var msg = {size: size, slot: slot, data: data};
         $.post("/upload", msg);
@@ -68,7 +73,9 @@ function uploadFile(files, elem, slot) {
 }
 
 $(document).ready(function() {
-    function stopEvent(e) { e.stopPropagation(); e.preventDefault(); }
+    function stopEvent(e) {
+        e.stopPropagation(); e.preventDefault();
+    }
 
     function makeDropZone(elem, slot) {
         elem.ondragenter = stopEvent;
@@ -76,7 +83,9 @@ $(document).ready(function() {
         elem.ondrop = function(e) {
             stopEvent(e);
             $(elem).css("background-color", "rgb(110, 55, 55)");
-            setTimeout(function() { $(elem).css("background-color", ""); }, 250);
+            setTimeout(function() {
+                $(elem).css("background-color", "");
+            }, 250);
             uploadFile(e.dataTransfer.files, "#"+elem.id, slot);
         };
     }
@@ -113,41 +122,40 @@ $(document).ready(function() {
             var msg = JSON.parse(e.data);
 
             switch (msg.type) {
-            case "iterateInfo":
-                $("#iterate-stats").css("display", "block");
-                $("#iterate").text(msg.i);
-                $("#loss").text(msg.loss.toPrecision(6));
-                $("#step-size").text(msg.stepSize.toPrecision(3));
-                $("#its-per-s").text(msg.itsPerS.toPrecision(3));
-                break;
-            case "newParams":
-                $("#params").val(msg.params);
-                break;
-            case "newSize":
-                $("#resize-to").val(Math.max(msg.width, msg.height));
-                $("#output-image").attr("width", msg.width);
-                $("#output-image").attr("height", msg.height);
-                break;
-            case "state":  // misc things on the page that aren't editable
-                if (msg.running) {
-                    $("#start").text("Pause");
-                    isStart = false;
-                } else {
-                    $("#start").text("Start");
-                    isStart = true;
-                }
-                break;
-            case "thumbnails":
-                if (msg.content) {
-                    setWithDataURI(msg.content, $("#content-drop")[0]);
-                }
-                if (msg.style) {
-                    setWithDataURI(msg.style, $("#style-drop")[0]);
-                }
-                break;
+                case "iterateInfo":
+                    $("#iterate-stats").css("display", "block");
+                    $("#iterate").text(msg.i);
+                    $("#loss").text(msg.loss.toPrecision(6));
+                    $("#step-size").text(msg.stepSize.toPrecision(3));
+                    $("#its-per-s").text(msg.itsPerS.toPrecision(3));
+                    break;
+                case "newParams":
+                    $("#params").val(msg.params);
+                    break;
+                case "newSize":
+                    $("#resize-to").val(Math.max(msg.width, msg.height));
+                    $("#output-image").attr("width", msg.width);
+                    $("#output-image").attr("height", msg.height);
+                    break;
+                case "state":  // misc things on the page that aren't editable
+                    if (msg.running) {
+                        $("#start").text("Pause");
+                        isStart = false;
+                    } else {
+                        $("#start").text("Start");
+                        isStart = true;
+                    }
+                    break;
+                case "thumbnails":
+                    if (msg.content) {
+                        setWithDataURL(msg.content, $("#content-drop")[0]);
+                    }
+                    if (msg.style) {
+                        setWithDataURL(msg.style, $("#style-drop")[0]);
+                    }
+                    break;
             }
         };
-
         ws.onclose = ws_connect;
     }
     ws_connect();
