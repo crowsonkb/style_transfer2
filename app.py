@@ -106,6 +106,8 @@ async def websocket(request):
     await ws.prepare(request)
     request.app.wss.append(ws)
 
+    if app.worker_ready:
+        send_websocket(app, dict(type='workerReady'))
     send_websocket(app, dict(type='newParams', params=get_params(app)))
     h, w = app.input_arr.shape[:2]
     send_websocket(app, dict(type='newSize', height=h, width=w))
@@ -251,6 +253,8 @@ async def process_messages(app):
             raise KeyboardInterrupt()
 
         elif isinstance(recv_msg, WorkerReady):
+            app.worker_ready = True
+            send_websocket(app, dict(type='workerReady'))
             if recv_msg.send_images:
                 init_arrays(app)
 
@@ -262,6 +266,7 @@ async def monitor_worker(app):
     while True:
         if app.worker_proc is None or app.worker_proc.poll() is not None:
             app.running = False
+            app.worker_ready = False
             send_websocket(app, dict(type='state', running=app.running))
             init_arrays(app)
             app.worker_proc = subprocess.Popen([str(WORKER_PATH)])

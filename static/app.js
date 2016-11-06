@@ -164,6 +164,11 @@ $(document).ready(function() {
                         setWithDataURL(msg.style, $("#style-drop")[0]);
                     }
                     break;
+                case "workerReady":
+                    $("#pre-start-message").css("display", "none");
+                    $("#start").attr("disabled", null);
+                    $("#reset").attr("disabled", null);
+                    break;
             }
         };
         ws.onclose = ws_connect;
