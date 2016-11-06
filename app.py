@@ -182,6 +182,8 @@ def process_params(app, msg):
         app.sock_out.send_pyobj(SetWeights(*params['weights']))
 
         app.params = params
+    except yaml.YAMLError:
+        pass  # TODO: send an error back to the user
     finally:
         msg = dict(type='newParams', params=get_params(app))
         send_websocket(app, msg)
@@ -267,9 +269,9 @@ async def monitor_worker(app):
         if app.worker_proc is None or app.worker_proc.poll() is not None:
             app.running = False
             app.worker_ready = False
+            app.worker_proc = subprocess.Popen([str(WORKER_PATH)])
             send_websocket(app, dict(type='state', running=app.running))
             init_arrays(app)
-            app.worker_proc = subprocess.Popen([str(WORKER_PATH)])
         await asyncio.sleep(0.1)
 
 

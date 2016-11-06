@@ -314,6 +314,7 @@ class Worker:
         self.sock_out = ctx.socket(zmq.PUSH)
         self.sock_in.bind(config['worker_socket'])
         self.sock_out.connect(config['app_socket'])
+        self.run_should_stop = False
 
         prototxt = MODULE_DIR / config['prototxt']
         caffemodel = MODULE_DIR / config['caffemodel']
@@ -323,16 +324,18 @@ class Worker:
         self.transfer = StyleTransfer(model)
         self.sock_out.send_pyobj(WorkerReady())
 
+    def __del__(self):
+        self.run_should_stop = True
+
     def run(self):
         try:
-            should_stop = False
-            while not should_stop:
+            while not self.run_should_stop:
                 if self.transfer.is_running:
                     try:
                         while True:
                             msg = self.sock_in.recv_pyobj(zmq.NOBLOCK)
                             if self.process_message(msg):
-                                should_stop = True
+                                self.run_should_stop = True
                                 break
                     except zmq.ZMQError:
                         image, trace = self.transfer.step()
