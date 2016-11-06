@@ -253,7 +253,8 @@ class StyleTransfer:
                 _, n, mh, mw = current_feats[layer].shape
                 gram_diff = gram_matrix(current_feats[layer]) - self.grams[layer]
                 feat = current_feats[layer].reshape((n, mh * mw))
-                s_grad = (2 / gram_diff.size) * np.dot(gram_diff, feat).reshape((1, n, mh, mw))
+                s_grad = np.dot(gram_diff, feat).reshape((1, n, mh, mw))
+                s_grad *= 2 / (gram_diff.size * feat.size)
                 if layer not in sn:
                     sn[layer] = np.sqrt(np.mean(s_grad**2))
                 loss += t(name('s', 'loss'), sw * np.mean(gram_diff**2) / sn[layer])
