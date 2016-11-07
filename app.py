@@ -131,6 +131,7 @@ async def websocket(request):
             elif msg['type'] == 'reset':
                 image = np.uint8(np.random.uniform(0, 255, app.input_arr.shape))
                 app.input_arr = image
+                app.input_was_reset = True
                 app.sock_out.send_pyobj(SetImages(input_image=image, reset_state=True))
             elif msg['type'] == 'restartWorker':
                 app.running = False
@@ -236,6 +237,7 @@ def init_arrays(app):
     if max(app.input_arr.shape[:2]) != app.params['size']:
         size = utils.fit_into_square(app.input_arr.shape[:2], app.params['size'])
         app.input_arr = utils.resample_hwc(app.input_arr, size)
+    app.input_was_reset = False
 
     msg = SetImages(None, app.input_arr, np.uint8(content), np.uint8(style))
     app.sock_out.send_pyobj(msg)
@@ -266,7 +268,9 @@ def process_iterate(app, recv_msg):
     msg = dict(type='iterateInfo', i=recv_msg.i, trace=recv_msg.trace,
                stepSize=float(step_size), itsPerS=app.its_per_s())
     send_websocket(app, msg)
-    app.input_arr = recv_msg.image
+    if not app.input_was_reset or recv_msg.i == 1:
+        app.input_was_reset = False
+        app.input_arr = recv_msg.image
 
 
 async def process_messages(app):
