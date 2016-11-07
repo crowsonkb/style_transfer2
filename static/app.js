@@ -44,7 +44,7 @@ function upload(slot) {
 }
 
 function refreshImage() {
-    $("#output-image").attr("src", "/output");
+    $("#output-image").attr("src", "/output?" + new Date().getTime());
 }
 
 function setWithDataURL(url, elem) {
