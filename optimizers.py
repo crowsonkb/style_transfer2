@@ -14,8 +14,8 @@ class AdamOptimizer:
         self.opfunc = opfunc
         self.step_size = step_size
         self.t = 0
-        self.g1 = utils.DecayingMean(x.shape, x.dtype, decay=b1)
-        self.g2 = utils.DecayingMean(x.shape, x.dtype, decay=b2)
+        self.g1 = utils.DecayingMean(b1)
+        self.g2 = utils.DecayingMean(b2)
 
     def step(self):
         """Takes a scaled gradient descent step. Updates x in place, and returns the new value."""

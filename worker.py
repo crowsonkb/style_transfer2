@@ -136,6 +136,12 @@ class StyleTransfer:
         self.norms = {k: {} for k in 'cds'}
         self.traces = []
 
+    def check_consistency(self):
+        if self.input is not None and self.content is not None and self.grams:
+            if self.input.shape == self.content.shape:
+                return True
+        return False
+
     def objective_changed(self):
         if self.optimizer is not None:
             self.optimizer.objective_changed()
@@ -338,9 +344,12 @@ class Worker:
                                 self.run_should_stop = True
                                 break
                     except zmq.ZMQError:
-                        image, trace = self.transfer.step()
-                        new_msg = Iterate(image, self.transfer.t, trace)
-                        self.sock_out.send_pyobj(new_msg)
+                        if self.transfer.check_consistency():
+                            image, trace = self.transfer.step()
+                            new_msg = Iterate(image, self.transfer.t, trace)
+                            self.sock_out.send_pyobj(new_msg)
+                        else:
+                            self.sock_out.send_pyobj(GetImages())
                     continue
                 msg = self.sock_in.recv_pyobj()
                 if self.process_message(msg):

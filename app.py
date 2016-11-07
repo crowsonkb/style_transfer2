@@ -151,7 +151,12 @@ async def websocket(request):
 
 def send_websocket(app, msg):
     for ws in app.wss:
-        ws.send_json(msg)
+        try:
+            ws.send_json(msg)
+        except TypeError as err:
+            logger.debug('TypeError: %s', err)
+        except RuntimeError:
+            pass
 
 
 def get_params(app):
@@ -241,16 +246,16 @@ def init_arrays(app):
 def process_iterate(app, recv_msg):
     # Update the average iterates per second value
     it_time = time.perf_counter()
-    if recv_msg.i:
-        app.its_per_s(1 / (it_time - app.last_it_time))
-    else:
+    if recv_msg.i == 1:
         app.its_per_s.clear()
+    else:
+        app.its_per_s(1 / (it_time - app.last_it_time))
     app.i = recv_msg.i
     app.last_it_time = it_time
 
     # Compute RMS difference of iterates
-    step_size = np.nan
-    if recv_msg.i > 0 and recv_msg.image.shape == app.input_arr.shape:
+    step_size = 0
+    if recv_msg.i > 1 and recv_msg.image.shape == app.input_arr.shape:
         diff = recv_msg.image - app.input_arr
         step_size = np.sqrt(np.mean(diff**2))
 

@@ -46,8 +46,8 @@ class DecayingMean:
     """An exponentially weighted decaying mean with initialization bias correction. When called,
     returns the current mean. When called with a parameter, decays the mean and adds the parameter
     to it. If called while empty, returns NaN."""
-    def __init__(self, shape=(), dtype=np.float64, decay=0.9):
-        self.mean = np.zeros(shape, dtype)
+    def __init__(self, decay=0.9):
+        self.mean = 0
         self.decay = decay
         self.items = 0
 
@@ -56,8 +56,7 @@ class DecayingMean:
             self.mean = self.decay*self.mean + (1-self.decay)*item
             self.items += 1
         if self.items == 0:
-            warnings.warn('DecayingMean instance is empty, returning NaN', RuntimeWarning)
-            return np.nan
+            return self.mean
         return self.mean / (1 - self.decay**self.items)
 
     def clear(self):
