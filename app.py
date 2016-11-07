@@ -71,7 +71,11 @@ async def upload(request):
         thumbnail_msg = dict(type='thumbnails', style=request.app.style_image.thumbnail_url_)
     elif msg['slot'] == 'content':
         current_image = np.uint8(utils.resize_to_fit(image, int(msg['size'])))
-        out_msg = SetImages(current_image.shape[:2], SetImages.RESAMPLE, current_image)
+        input_image = SetImages.RESAMPLE
+        if request.app.i <= 1:
+            input_image = np.uint8(np.random.uniform(0, 255, current_image.shape[:2] + (3,)))
+            request.app.input_arr = input_image
+        out_msg = SetImages(current_image.shape[:2], input_image, current_image)
         request.app.its_per_s.clear()
         request.app.content_image = image
         make_thumbnails(request.app)
@@ -175,7 +179,7 @@ def process_params(app, msg):
             content_image = app.content_image.resize(new_size[::-1], Image.LANCZOS)
             app.its_per_s.clear()
 
-            if app.i == 0:
+            if app.i <= 1:
                 input_image = np.uint8(np.random.uniform(0, 255, new_size + (3,)))
                 app.input_arr = input_image
             else:
