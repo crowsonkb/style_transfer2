@@ -111,8 +111,8 @@ $(document).ready(function() {
         uploadFile(this.files, 'style-drop', 'style');
     };
 
-    // Wait 100ms after loading to refresh output image
-    var update_every = 100;
+    // Wait 250ms after loading to refresh output image
+    var update_every = 250;
     $("#output-image").on("load", function() {
         setTimeout(refreshImage, update_every);
     });
