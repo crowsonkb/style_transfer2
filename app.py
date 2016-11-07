@@ -159,6 +159,8 @@ def get_params(app):
 
 
 def process_params(app, msg):
+    error_string = ''
+
     try:
         params = yaml.safe_load(msg['params'])
 
@@ -186,24 +188,23 @@ def process_params(app, msg):
             for layer, weight in params['weights'][0][loss_name].items():
                 if layer not in app.layers:
                     raise ValueError('Invalid layer name. Valid layer names are: %s' % \
-                                     ', '.join(app.layers))
-                weights[loss_name][layer] = weight
+                                     ', '.join(app.layers) + '.')
+                weights[loss_name][layer] = float(weight)
 
         scalar_weights = {}
         for loss_name in SetWeights.scalar_loss_names:
-            scalar_weights[loss_name] = params['weights'][1][loss_name]
+            scalar_weights[loss_name] = float(params['weights'][1][loss_name])
 
         app.sock_out.send_pyobj(SetWeights(weights, scalar_weights))
 
         app.params = params
-    except yaml.YAMLError:
-        pass  # TODO: send an error back to the user
-    except KeyError:
-        pass  # TODO: send an error back to the user
-    except ValueError:
-        pass  # TODO: send an error back to the user
+    except KeyError as err:
+        error_string = err.__class__.__name__ + ': ' + str(err) + \
+                       ': All required parameters were not found. Please don\'t delete parameters.'
+    except Exception as err:
+        error_string = err.__class__.__name__ + ': ' + str(err)
     finally:
-        msg = dict(type='newParams', params=get_params(app))
+        msg = dict(type='newParams', params=get_params(app), errorString=error_string)
         send_websocket(app, msg)
 
 

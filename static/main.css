@@ -58,6 +58,11 @@ textarea {
     margin: 16px;
 }
 
+#params-error {
+    font-size: 80%;
+    color: rgb(192, 55, 55);
+}
+
 #resize-to {
     width: 60px;
 }

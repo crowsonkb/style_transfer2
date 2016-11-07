@@ -141,6 +141,7 @@ $(document).ready(function() {
                     break;
                 case "newParams":
                     $("#params").val(msg.params);
+                    $("#params-error").text(msg.errorString);
                     break;
                 case "newSize":
                     $("#resize-to").val(Math.max(msg.width, msg.height));
