@@ -166,8 +166,7 @@ $(document).ready(function() {
                     break;
                 case "workerReady":
                     $("#pre-start-message").css("display", "none");
-                    $("#start").attr("disabled", null);
-                    $("#reset").attr("disabled", null);
+                    $("button").attr("disabled", null);
                     break;
             }
         };

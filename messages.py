@@ -1,3 +1,5 @@
+"""Defines pickleable message types to be exchanged via PyZMQ."""
+
 import inspect
 import logging
 
@@ -14,6 +16,7 @@ class Message:
 
     def __repr__(self):
         def repr_value(v):
+            """Calls repr() on objects, with a short representation for ndarray types."""
             if isinstance(v, np.ndarray):
                 return '<ndarray, shape: %s, dtype: %s>' % (v.shape, v.dtype)
             return repr(v)
@@ -30,6 +33,14 @@ class Message:
                              caller.f_lineno, caller.f_code.co_filename, repr(self))
             finally:
                 del frame
+
+
+class GetImages(Message):
+    """A notification from the worker to the app that the worker was unable to start iterating
+    because it does not have all required image slots filled, and that the images should be
+    sent."""
+    def __init__(self):
+        self._debug()
 
 
 class Iterate(Message):
@@ -85,6 +96,8 @@ class SetOptimizer(Message):
 
     def __init__(self, optimizer, step_size=None):
         self.optimizer = optimizer
+        if optimizer not in self.classes:
+            raise ValueError('Invalid optimizer type')
         if not step_size:
             step_size = self.step_sizes[optimizer]
         self.step_size = step_size
@@ -128,6 +141,8 @@ class StartIteration(Message):
 
 class WorkerReady(Message):
     """Signals the app that the worker is ready to receive messages and should be initialized."""
-    def __init__(self, send_images=False):
-        self.send_images = send_images
+    def __init__(self, layers=None):
+        self.layers = []
+        if layers is not None:
+            self.layers = layers
         self._debug()

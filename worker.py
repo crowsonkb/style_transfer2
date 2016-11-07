@@ -322,7 +322,7 @@ class Worker:
         model = CaffeModel(prototxt, caffemodel, gpu)
 
         self.transfer = StyleTransfer(model)
-        self.sock_out.send_pyobj(WorkerReady())
+        self.sock_out.send_pyobj(WorkerReady(layers=self.transfer.model.layers()))
 
     def __del__(self):
         self.run_should_stop = True
@@ -385,7 +385,7 @@ class Worker:
 
         elif isinstance(msg, StartIteration):
             if not self.transfer.start():
-                self.sock_out.send_pyobj(WorkerReady(send_images=True))
+                self.sock_out.send_pyobj(GetImages())
 
         elif isinstance(msg, PauseIteration):
             self.transfer.pause()

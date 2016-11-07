@@ -179,10 +179,28 @@ def process_params(app, msg):
             send_websocket(app, dict(type='newSize', height=new_size[0], width=new_size[1]))
 
         app.sock_out.send_pyobj(SetOptimizer(params['optimizer'], params['optimizer_step_size']))
-        app.sock_out.send_pyobj(SetWeights(*params['weights']))
+
+        weights = {}
+        for loss_name in SetWeights.loss_names:
+            weights[loss_name] = {}
+            for layer, weight in params['weights'][0][loss_name].items():
+                if layer not in app.layers:
+                    raise ValueError('Invalid layer name. Valid layer names are: %s' % \
+                                     ', '.join(app.layers))
+                weights[loss_name][layer] = weight
+
+        scalar_weights = {}
+        for loss_name in SetWeights.scalar_loss_names:
+            scalar_weights[loss_name] = params['weights'][1][loss_name]
+
+        app.sock_out.send_pyobj(SetWeights(weights, scalar_weights))
 
         app.params = params
     except yaml.YAMLError:
+        pass  # TODO: send an error back to the user
+    except KeyError:
+        pass  # TODO: send an error back to the user
+    except ValueError:
         pass  # TODO: send an error back to the user
     finally:
         msg = dict(type='newParams', params=get_params(app))
@@ -256,9 +274,11 @@ async def process_messages(app):
 
         elif isinstance(recv_msg, WorkerReady):
             app.worker_ready = True
+            app.layers = recv_msg.layers
             send_websocket(app, dict(type='workerReady'))
-            if recv_msg.send_images:
-                init_arrays(app)
+
+        elif isinstance(recv_msg, GetImages):
+            init_arrays(app)
 
         else:
             logger.error('Unknown message type received over ZeroMQ.')
@@ -285,6 +305,7 @@ async def startup_tasks(app):
     app.last_it_time = 0
     app.its_per_s = utils.DecayingMean()
     app.params = {}
+    app.layers = []
     init_params(app)
     init_arrays(app)
     app.i = 0
