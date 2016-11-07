@@ -7,7 +7,6 @@
     <h1>Style Transfer</h1>
     <img src="/output" id="output-image"><br>
     <button id="start" onclick="start()" disabled>Start</button>
-    <button id="reset" onclick="reset()" disabled>Reset image</button><br>
 
     <div id="pre-start-message">Waiting for worker to start...</div>
     <div id="iterate-stats" class="stats" style="display: none">Iterate <span id="iterate">[]</span>, difference from last iterate: <span id="step-size">[]</span><br>
@@ -26,7 +25,7 @@
     <span class="dropzone-label">Content image</span>
     <span class="dropzone-label">Style image</span>
     <br style="clear: both;">
-    Scale to: <input type="number" id="resize-to" size="5"> px<br><br>
+    <div style="height: 28px; width: 318px">Scale to: <input type="number" id="resize-to" size="5"> px <div style="float: right; width: 135px"><input id="reset-image" type="checkbox" style="text-align: right; height: 20px" checked> Reset image</input></div></div><br><br>
 
     <p style="margin-bottom: 8px;">Parameters:<br></p>
     <textarea id="params" rows="12" cols="70"></textarea><br>

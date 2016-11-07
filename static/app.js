@@ -73,6 +73,7 @@ function uploadFile(files, elem, slot) {
         var msg = {size: size, slot: slot, data: data};
         $.post("/upload", msg);
     };
+    if ($("#reset-image")[0].checked) { reset(); }
     reader.readAsDataURL(files[0]);
 }
 
