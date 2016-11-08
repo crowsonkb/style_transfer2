@@ -344,12 +344,13 @@ class Worker:
                                 self.run_should_stop = True
                                 break
                     except zmq.ZMQError:
-                        if self.transfer.check_consistency():
-                            image, trace = self.transfer.step()
-                            new_msg = Iterate(image, self.transfer.t, trace)
-                            self.sock_out.send_pyobj(new_msg)
-                        else:
-                            self.sock_out.send_pyobj(GetImages())
+                        if self.transfer.is_running:
+                            if self.transfer.check_consistency():
+                                image, trace = self.transfer.step()
+                                new_msg = Iterate(image, self.transfer.t, trace)
+                                self.sock_out.send_pyobj(new_msg)
+                            else:
+                                self.sock_out.send_pyobj(GetImages())
                     continue
                 msg = self.sock_in.recv_pyobj()
                 if self.process_message(msg):

@@ -35,6 +35,22 @@ class Message:
                 del frame
 
 
+class AppDown(Message):
+    """A notification from the app to the router that the app is shutting down."""
+    def __init__(self, addr):
+        self.addr = addr
+        self._debug()
+
+
+class AppUp(Message):
+    """A notification from the app to the router that the app has started up and is ready."""
+    def __init__(self, addr, host, port):
+        self.addr = addr
+        self.host = host
+        self.port = port
+        self._debug()
+
+
 class GetImages(Message):
     """A notification from the worker to the app that the worker was unable to start iterating
     because it does not have all required image slots filled, and that the images should be
@@ -58,6 +74,12 @@ class Iterate(Message):
 
 class PauseIteration(Message):
     """Signals the worker to pause iteration."""
+    def __init__(self):
+        self._debug()
+
+
+class Reset(Message):
+    """A message from the router to the app to reset its state and its worker's."""
     def __init__(self):
         self._debug()
 

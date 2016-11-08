@@ -234,16 +234,19 @@ def init_params(app):
 def init_arrays(app):
     content = utils.resize_to_fit(app.content_image, app.params['size'])
     style = utils.resize_to_fit(app.style_image, app.style_size)
-    if not hasattr(app, 'input_arr'):
+
+    if app.input_arr is None:
         w, h = content.size
         app.input_arr = np.uint8(np.random.uniform(0, 255, (h, w, 3)))
-
-    if max(app.input_arr.shape[:2]) != app.params['size']:
+        app.input_was_reset = True
+        reset_state = True
+    elif max(app.input_arr.shape[:2]) != app.params['size']:
         size = utils.fit_into_square(app.input_arr.shape[:2], app.params['size'])
         app.input_arr = utils.resample_hwc(app.input_arr, size)
-    app.input_was_reset = False
+        app.input_was_reset = False
+        reset_state = False
 
-    msg = SetImages(None, app.input_arr, np.uint8(content), np.uint8(style))
+    msg = SetImages(None, app.input_arr, np.uint8(content), np.uint8(style), reset_state)
     app.sock_out.send_pyobj(msg)
 
     app.sock_out.send_pyobj(SetWeights(*app.params['weights']))
@@ -269,12 +272,12 @@ def process_iterate(app, recv_msg):
                 recv_msg.i, recv_msg.trace['loss'], step_size)
 
     # Notify the client that an iterate was received
-    msg = dict(type='iterateInfo', i=recv_msg.i, trace=recv_msg.trace,
-               stepSize=float(step_size), itsPerS=app.its_per_s())
-    send_websocket(app, msg)
-    if not app.input_was_reset or recv_msg.i == 1:
+    if app.running and (not app.input_was_reset or recv_msg.i == 1):
         app.input_was_reset = False
         app.input_arr = recv_msg.image
+        msg = dict(type='iterateInfo', i=recv_msg.i, trace=recv_msg.trace,
+                   stepSize=float(step_size), itsPerS=app.its_per_s())
+        send_websocket(app, msg)
 
 
 async def process_messages(app):
@@ -290,8 +293,19 @@ async def process_messages(app):
             app.worker_ready = True
             app.layers = recv_msg.layers
             send_websocket(app, dict(type='workerReady'))
+            if app.sock_router:
+                app.sock_router.send_pyobj(AppUp(app.config['app_socket'],
+                                                 app.config['http_host'],
+                                                 int(app.config['http_port'])))
 
         elif isinstance(recv_msg, GetImages):
+            init_arrays(app)
+
+        elif isinstance(recv_msg, Reset):
+            app.sock_out.send_pyobj(PauseIteration())
+            app.running = False
+            init_params(app)
+            app.input_arr = None
             init_arrays(app)
 
         else:
@@ -312,14 +326,19 @@ async def monitor_worker(app):
 async def startup_tasks(app):
     app.sock_in = ctx.socket(zmq.PULL)
     app.sock_out = ctx.socket(zmq.PUSH)
+    app.sock_router = None
     app.sock_in.bind(app.config['app_socket'])
     app.sock_out.connect(app.config['worker_socket'])
+    if 'router_socket' in app.config:
+        app.sock_router = ctx.socket(zmq.PUSH)
+        app.sock_router.connect(app.config['router_socket'])
     app.wss = []
     app.running = False
     app.last_it_time = 0
     app.its_per_s = utils.DecayingMean()
     app.params = {}
     app.layers = []
+    app.input_arr = None
     init_params(app)
     init_arrays(app)
     app.i = 0
@@ -329,6 +348,8 @@ async def startup_tasks(app):
 
 
 async def cleanup_tasks(app):
+    if app.sock_router:
+        app.sock_router.send_pyobj(AppDown(app.config['app_socket']))
     app.pm_future.cancel()
     app.mw_future.cancel()
     app.sock_out.send_pyobj(Shutdown())
@@ -364,10 +385,11 @@ def main():
     utils.setup_logging(debug)
 
     try:
-        web.run_app(app, host=app.config['http_host'], port=app.config['http_port'],
+        web.run_app(app, host=app.config['http_host'], port=int(app.config['http_port']),
                     shutdown_timeout=1)
     except KeyboardInterrupt:
         pass
+
 
 if __name__ == '__main__':
     main()
