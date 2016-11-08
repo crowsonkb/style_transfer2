@@ -247,6 +247,8 @@ def main():
     if app.debug_level:
         utils.setup_exceptions(mode='Context')
         app['debug'] = True
+    if app.debug_level >= 2:
+        loop.set_debug(True)
     utils.setup_logging(app.debug_level)
 
     try:
@@ -255,6 +257,7 @@ def main():
     except KeyboardInterrupt:
         pass
     finally:
+        logger.info('Shutting down router.')
         for inst in app.addrs.values():
             inst.socket = None
         state = RouterState(app.addrs, app.sessions)
