@@ -312,6 +312,14 @@ async def process_messages(app):
             logger.error('Unknown message type received over ZeroMQ.')
 
 
+async def ping_router(app):
+    while True:
+        app.sock_router.send_pyobj(AppUp(app.config['app_socket'],
+                                         app.config['http_host'],
+                                         int(app.config['http_port'])))
+        await asyncio.sleep(5)
+
+
 async def monitor_worker(app):
     while True:
         if app.worker_proc is None or app.worker_proc.poll() is not None:
@@ -345,10 +353,13 @@ async def startup_tasks(app):
     app.worker_proc = None
     app.mw_future = asyncio.ensure_future(monitor_worker(app))
     app.pm_future = asyncio.ensure_future(process_messages(app))
+    if app.sock_router:
+        app.pr_future = asyncio.ensure_future(ping_router(app))
 
 
 async def cleanup_tasks(app):
     if app.sock_router:
+        app.pr_future.cancel()
         app.sock_router.send_pyobj(AppDown(app.config['app_socket']))
     app.pm_future.cancel()
     app.mw_future.cancel()

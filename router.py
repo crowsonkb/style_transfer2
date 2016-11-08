@@ -122,14 +122,12 @@ async def process_messages(app):
                         del app.sessions[session_id]
 
         elif isinstance(msg, AppUp):
-            logger.info('%s', msg)
-            if msg.addr in app.addrs:
-                socket = app.addrs[msg.addr].socket
-            else:
+            if msg.addr not in app.addrs:
+                logger.info('%s', msg)
                 socket = ctx.socket(zmq.PUSH)
                 socket.connect(msg.addr)
-            inst = AppInstance(msg.addr, socket, msg.host, msg.port, None)
-            app.addrs[msg.addr] = inst
+                inst = AppInstance(msg.addr, socket, msg.host, msg.port, None)
+                app.addrs[msg.addr] = inst
 
         else:
             logger.error('Unknown message type received over ZeroMQ.')
