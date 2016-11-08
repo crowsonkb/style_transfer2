@@ -119,10 +119,10 @@ def parse_args(desc=''):
 def read_config(args):
     """Returns a dict-like object consisting of key-value pairs from the configuration file."""
     cp = configparser.ConfigParser()
-    cp.read(str(CONFIG_PATH))
-    cp.read(str(CONFIG_PATH_NON_GIT))
+    configs = [str(CONFIG_PATH), str(CONFIG_PATH_NON_GIT)]
     if args.config:
-        cp.read(args.config)
+        configs.append(args.config)
+    cp.read(configs)
     return cp['DEFAULT']
 
 

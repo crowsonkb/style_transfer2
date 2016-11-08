@@ -379,6 +379,7 @@ async def cleanup_tasks(app):
         app.worker_proc.wait(timeout=5)
     except subprocess.TimeoutExpired:
         app.worker_proc.terminate()
+        app.worker_proc.wait()
 
 
 def init(args):
@@ -418,6 +419,7 @@ def main():
         pass
     finally:
         logger.info('Shutting down app.')
+        ctx.destroy(0)
 
 if __name__ == '__main__':
     main()

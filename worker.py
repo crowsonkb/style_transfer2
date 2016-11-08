@@ -421,7 +421,7 @@ def main():
     Worker(config).run()
 
     logger.info('Shutting down worker process.')
-
+    ctx.destroy(0)
 
 if __name__ == '__main__':
     main()

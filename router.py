@@ -258,6 +258,7 @@ def main():
         pass
     finally:
         logger.info('Shutting down router.')
+        ctx.destroy(0)
         for inst in app.addrs.values():
             inst.socket = None
         state = RouterState(app.addrs, app.sessions)
