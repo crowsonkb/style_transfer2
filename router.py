@@ -28,7 +28,7 @@ asyncio.set_event_loop(loop)
 
 
 class AppInstance:
-    def __init__(self, addr, socket, host, port, app_id, session_id):
+    def __init__(self, addr, socket, host, port, app_id, session_id=None):
         self.addr = addr
         self.socket = socket
         self.host = host
@@ -36,6 +36,7 @@ class AppInstance:
         self.app_id = app_id
         self.session_id = session_id
         self.last_access = time.monotonic()
+        self.last_ping = time.monotonic()
 
 
 async def proxy(request):
@@ -138,8 +139,8 @@ async def process_messages(app):
                     del app.sessions[sess]
 
         elif isinstance(msg, AppUp):
-            logger.info('%s', msg)
             if msg.addr not in app.addrs or app.addrs[msg.addr].app_id != msg.app_id:
+                logger.info('%s', msg)
                 if msg.addr in app.addrs:
                     inst = app.addrs[msg.addr]
                     if inst.session_id in app.sessions:
@@ -149,17 +150,20 @@ async def process_messages(app):
                 socket = ctx.socket(zmq.PUSH)
                 socket.connect(msg.addr)
                 socket.send_pyobj(Reset())
-                inst = AppInstance(msg.addr, socket, msg.host, msg.port, msg.app_id, None)
+                inst = AppInstance(msg.addr, socket, msg.host, msg.port, msg.app_id)
                 app.addrs[msg.addr] = inst
+            else:
+                app.addrs[msg.addr].last_ping = time.monotonic()
 
         else:
             logger.error('Unknown message type received over ZeroMQ.')
 
 
-async def expire_sessions(app):
+async def expire_state(app):
     timeout = app.config.getint('router_session_timeout')
     while True:
         now = time.monotonic()
+        addr_to_del = None
         for addr, inst in app.addrs.items():
             if inst.session_id is not None and inst.last_access < now - timeout:
                 logger.debug('Expiring session %s on %s', inst.session_id, addr)
@@ -167,6 +171,11 @@ async def expire_sessions(app):
                 if inst.session_id in app.sessions:
                     del app.sessions[inst.session_id]
                 inst.session_id = None
+            if inst.last_ping < now - timeout:
+                addr_to_del = addr
+        if addr_to_del:
+            logger.debug('Ping timeout for instance %s', addr_to_del)
+            del app.addrs[addr_to_del]
         await asyncio.sleep(1)
 
 
@@ -175,7 +184,7 @@ async def startup_tasks(app):
     app.sock_in.bind(app.config['router_socket'])
     app.addrs = {}
     app.sessions = {}
-    app.expire_task = asyncio.Task(expire_sessions(app))
+    app.expire_task = asyncio.Task(expire_state(app))
     app.pm_task = asyncio.Task(process_messages(app))
 
 
