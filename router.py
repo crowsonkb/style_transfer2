@@ -243,6 +243,7 @@ def main():
     debug = app.config.getboolean('debug', False)
     if debug:
         utils.setup_exceptions(mode='Context')
+        app['debug'] = True
     utils.setup_logging(debug)
 
     try:
