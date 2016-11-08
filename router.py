@@ -180,7 +180,8 @@ async def expire_state(app, run_once=False):
         for addr, inst in app.addrs.items():
             if inst.session_id is not None and inst.last_access < now - timeout:
                 logger.debug('Expiring session %s on %s', inst.session_id, addr)
-                inst.socket.send_pyobj(Reset())
+                if inst.socket and not inst.socket.closed:
+                    inst.socket.send_pyobj(Reset())
                 if inst.session_id in app.sessions:
                     del app.sessions[inst.session_id]
                 inst.session_id = None
