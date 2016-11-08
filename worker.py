@@ -418,10 +418,11 @@ def main():
         utils.setup_exceptions(mode='Context')
     utils.setup_logging(debug)
 
-    Worker(config).run()
-
-    logger.info('Shutting down worker process.')
-    ctx.destroy(0)
+    try:
+        Worker(config).run()
+    finally:
+        logger.info('Shutting down worker process.')
+        ctx.destroy(0)
 
 if __name__ == '__main__':
     main()
