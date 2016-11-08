@@ -117,9 +117,13 @@ async def process_messages(app):
                 inst_a = app.addrs[msg.addr]
                 inst_a.socket.close()
                 del app.addrs[msg.addr]
+                sess = None
                 for session_id, inst_b in app.sessions.items():
                     if inst_a == inst_b:
-                        del app.sessions[session_id]
+                        sess = session_id
+                        break
+                if sess:
+                    del app.sessions[sess]
 
         elif isinstance(msg, AppUp):
             if msg.addr not in app.addrs:
