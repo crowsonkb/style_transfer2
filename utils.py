@@ -1,5 +1,6 @@
 """Various functions which must be used by both the app and its worker process."""
 
+import argparse
 import cProfile
 import configparser
 from collections import OrderedDict
@@ -15,6 +16,8 @@ import warnings
 import numpy as np
 from PIL import Image
 from scipy.linalg import blas
+
+import messages
 
 MODULE_DIR = Path(__file__).parent.resolve()
 CONFIG_PATH = MODULE_DIR / 'config.ini'
@@ -103,13 +106,23 @@ def line_profile(items):
     prof.print_stats()
 
 
-def read_config():
+def parse_args(desc=''):
+    parser = argparse.ArgumentParser(description=desc)
+    parser.add_argument('config', nargs='?', help='the config file')
+    parser.add_argument('--debug', '-d', action='count', help='debug')
+    args = parser.parse_args()
+    if not args.debug:
+        args.debug = 0
+    return args
+
+
+def read_config(args):
     """Returns a dict-like object consisting of key-value pairs from the configuration file."""
     cp = configparser.ConfigParser()
     cp.read(str(CONFIG_PATH))
     cp.read(str(CONFIG_PATH_NON_GIT))
-    if len(sys.argv) >= 2:
-        cp.read(sys.argv[1])
+    if args.config:
+        cp.read(args.config)
     return cp['DEFAULT']
 
 
@@ -155,7 +168,7 @@ def setup_exceptions(mode='Plain', color_scheme='Neutral'):
         pass
 
 
-def setup_logging(debug=False):
+def setup_logging(debug=0):
     """Sets the logging configuration for the current process."""
     fmt = '%(asctime)s.%(msecs)03d %(process)d %(name)s %(levelname)s: %(message)s'
     datefmt = '%H:%M:%S'
@@ -163,7 +176,10 @@ def setup_logging(debug=False):
         logging.basicConfig(level=logging.DEBUG, format=fmt, datefmt=datefmt)
     else:
         logging.basicConfig(level=logging.INFO, format=fmt, datefmt=datefmt)
-    logging.getLogger('aiohttp.access').setLevel(logging.WARNING)
+    if debug <= 1:
+        logging.getLogger('aiohttp.access').setLevel(logging.WARNING)
+    else:
+        messages.Message.debug = True
     logging.captureWarnings(True)
 
 

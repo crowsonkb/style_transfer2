@@ -221,9 +221,12 @@ async def cleanup_tasks(app):
     app.expire_task.cancel()
 
 
-def init():
+def init(args):
     app = web.Application(middlewares=[ErrorPages()])
-    app.config = utils.read_config()
+    app.config = utils.read_config(args)
+    app.debug_level = app.config.getint('debug', 0)
+    if args.debug:
+        app.debug_level += args.debug
 
     aiohttp_jinja2.setup(app, loader=jinja2.FileSystemLoader(str(TEMPLATES_PATH)))
     app.router.add_route('GET', '/', proxy)
@@ -236,16 +239,15 @@ def init():
     app.on_cleanup.append(cleanup_tasks)
     return app
 
-app = init()
-
 
 def main():
     """The main function."""
-    debug = app.config.getboolean('debug', False)
-    if debug:
+    args = utils.parse_args(__doc__)
+    app = init(args)
+    if app.debug_level:
         utils.setup_exceptions(mode='Context')
         app['debug'] = True
-    utils.setup_logging(debug)
+    utils.setup_logging(app.debug_level)
 
     try:
         web.run_app(app, host=app.config['router_host'], port=int(app.config['router_port']),
@@ -258,7 +260,6 @@ def main():
         state = RouterState(app.addrs, app.sessions)
         with open(STATE_FILE, 'wb') as f:
             pickle.dump(state, f, pickle.HIGHEST_PROTOCOL)
-
 
 if __name__ == '__main__':
     main()

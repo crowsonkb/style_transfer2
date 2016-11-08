@@ -45,7 +45,7 @@ asyncio.set_event_loop(loop)
 
 @aiohttp_jinja2.template('index.html')
 async def root(request):
-    return {'max_size': app.config.getint('max_size', 9999)}
+    return {'max_size': request.app.config.getint('max_size', 9999)}
 
 
 async def output_image(request):
@@ -335,10 +335,7 @@ async def monitor_worker(app):
         if app.worker_proc is None or app.worker_proc.poll() is not None:
             app.running = False
             app.worker_ready = False
-            cfg = []
-            if len(sys.argv) >= 2:
-                cfg = [sys.argv[1]]
-            app.worker_proc = subprocess.Popen([str(WORKER_PATH)] + cfg)
+            app.worker_proc = subprocess.Popen([str(WORKER_PATH)] + sys.argv[1:])
             send_websocket(app, dict(type='state', running=app.running))
             init_arrays(app)
         await asyncio.sleep(0.1)
@@ -384,9 +381,12 @@ async def cleanup_tasks(app):
         app.worker_proc.terminate()
 
 
-def init():
+def init(args):
     app = web.Application(middlewares=[ErrorPages()])
-    app.config = utils.read_config()
+    app.config = utils.read_config(args)
+    app.debug_level = app.config.getint('debug', 0)
+    if args.debug:
+        app.debug_level += args.debug
 
     aiohttp_jinja2.setup(app, loader=jinja2.FileSystemLoader(str(TEMPLATES_PATH)))
     app.router.add_route('GET', '/', root)
@@ -399,16 +399,15 @@ def init():
     app.on_cleanup.append(cleanup_tasks)
     return app
 
-app = init()
-
 
 def main():
     """The main function."""
-    debug = app.config.getboolean('debug', False)
-    if debug:
+    args = utils.parse_args(__doc__)
+    app = init(args)
+    if app.debug_level:
         utils.setup_exceptions(mode='Context')
         app['debug'] = True
-    utils.setup_logging(debug)
+    utils.setup_logging(app.debug_level)
 
     try:
         web.run_app(app, host=app.config['http_host'], port=int(app.config['http_port']),

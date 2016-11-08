@@ -408,11 +408,12 @@ class Worker:
 
 def main():
     """The main function."""
-    config = utils.read_config()
+    args = utils.parse_args(__doc__)
+    config = utils.read_config(args)
     if 'caffe_path' in config:
         sys.path.append(config['caffe_path'] + '/python')
+    debug = args.debug + config.getint('debug', 0)
 
-    debug = config.getboolean('debug', False)
     if debug:
         utils.setup_exceptions(mode='Context')
     utils.setup_logging(debug)
