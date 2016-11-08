@@ -37,17 +37,19 @@ class Message:
 
 class AppDown(Message):
     """A notification from the app to the router that the app is shutting down."""
-    def __init__(self, addr):
+    def __init__(self, addr, app_id):
         self.addr = addr
+        self.app_id = app_id
         self._debug()
 
 
 class AppUp(Message):
     """A notification from the app to the router that the app has started up and is ready."""
-    def __init__(self, addr, host, port):
+    def __init__(self, addr, host, port, app_id):
         self.addr = addr
         self.host = host
         self.port = port
+        self.app_id = app_id
         self._debug()
 
 

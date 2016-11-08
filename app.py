@@ -10,6 +10,7 @@ import binascii
 import io
 import logging
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -297,7 +298,8 @@ async def process_messages(app):
             if app.sock_router:
                 app.sock_router.send_pyobj(AppUp(app.config['app_socket'],
                                                  app.config['http_host'],
-                                                 int(app.config['http_port'])))
+                                                 int(app.config['http_port']),
+                                                 app.id))
 
         elif isinstance(recv_msg, GetImages):
             init_arrays(app)
@@ -318,7 +320,8 @@ async def ping_router(app):
         if app.worker_ready:
             app.sock_router.send_pyobj(AppUp(app.config['app_socket'],
                                              app.config['http_host'],
-                                             int(app.config['http_port'])))
+                                             int(app.config['http_port']),
+                                             app.id))
         await asyncio.sleep(5)
 
 
@@ -345,6 +348,7 @@ async def startup_tasks(app):
     if 'router_socket' in app.config:
         app.sock_router = ctx.socket(zmq.PUSH)
         app.sock_router.connect(app.config['router_socket'])
+    app.id = os.urandom(8).hex()
     app.wss = []
     app.running = False
     app.last_it_time = 0
@@ -356,18 +360,18 @@ async def startup_tasks(app):
     init_arrays(app)
     app.i = 0
     app.worker_proc = None
-    app.mw_future = asyncio.ensure_future(monitor_worker(app))
-    app.pm_future = asyncio.ensure_future(process_messages(app))
+    app.mw_task = asyncio.Task(monitor_worker(app))
+    app.pm_task = asyncio.Task(process_messages(app))
     if app.sock_router:
-        app.pr_future = asyncio.ensure_future(ping_router(app))
+        app.pr_task = asyncio.Task(ping_router(app))
 
 
 async def cleanup_tasks(app):
     if app.sock_router:
-        app.pr_future.cancel()
-        app.sock_router.send_pyobj(AppDown(app.config['app_socket']))
-    app.pm_future.cancel()
-    app.mw_future.cancel()
+        app.pr_task.cancel()
+        app.sock_router.send_pyobj(AppDown(app.config['app_socket'], app.id))
+    app.pm_task.cancel()
+    app.mw_task.cancel()
     app.sock_out.send_pyobj(Shutdown())
     try:
         app.worker_proc.wait(timeout=5)
@@ -405,7 +409,6 @@ def main():
                     shutdown_timeout=1)
     except KeyboardInterrupt:
         pass
-
 
 if __name__ == '__main__':
     main()
