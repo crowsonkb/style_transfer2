@@ -134,7 +134,7 @@ async def process_messages(app):
 
 
 async def expire_sessions(app):
-    timeout = app.config['router_session_timeout']
+    timeout = app.config.getint('router_session_timeout')
     while True:
         now = time.monotonic()
         for addr, inst in app.addrs.items():
