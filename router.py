@@ -134,10 +134,11 @@ async def process_messages(app):
 
 
 async def expire_sessions(app):
+    timeout = app.config['router_session_timeout']
     while True:
         now = time.monotonic()
         for addr, inst in app.addrs.items():
-            if inst.session_id is not None and inst.last_access < now - 1:
+            if inst.session_id is not None and inst.last_access < now - timeout:
                 logger.debug('Expiring session %s on %s', inst.session_id, addr)
                 inst.socket.send_pyobj(Reset())
                 del app.sessions[inst.session_id]
