@@ -315,9 +315,10 @@ async def process_messages(app):
 
 async def ping_router(app):
     while True:
-        app.sock_router.send_pyobj(AppUp(app.config['app_socket'],
-                                         app.config['http_host'],
-                                         int(app.config['http_port'])))
+        if app.worker_ready:
+            app.sock_router.send_pyobj(AppUp(app.config['app_socket'],
+                                             app.config['http_host'],
+                                             int(app.config['http_port'])))
         await asyncio.sleep(5)
 
 
