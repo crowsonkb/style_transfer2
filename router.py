@@ -167,7 +167,7 @@ async def process_messages(app):
             logger.error('Unknown message type received over ZeroMQ.')
 
 
-async def expire_state(app):
+async def expire_state(app, run_once=False):
     timeout = app.config.getint('router_session_timeout')
     while True:
         now = time.monotonic()
@@ -184,6 +184,8 @@ async def expire_state(app):
         if addr_to_del:
             logger.debug('Ping timeout for instance %s', addr_to_del)
             del app.addrs[addr_to_del]
+        if run_once:
+            return
         await asyncio.sleep(1)
 
 
@@ -193,9 +195,13 @@ async def startup_tasks(app):
     app.addrs = {}
     app.sessions = {}
     try:
-        state = pickle.load(open(STATE_NAME, 'rb'))
+        state = pickle.load(open(STATE_FILE, 'rb'))
         app.addrs = state.addrs
         app.sessions = state.sessions
+        await expire_state(app, run_once=True)
+        for inst in state.addrs.values():
+            inst.socket = ctx.socket(zmq.PUSH)
+            inst.socket.connect(inst.addr)
     except FileNotFoundError:
         pass
     app.expire_task = asyncio.Task(expire_state(app))
@@ -233,8 +239,10 @@ def main():
     except KeyboardInterrupt:
         pass
     finally:
+        for inst in app.addrs.values():
+            inst.socket = None
         state = RouterState(app.addrs, app.sessions)
-        with open(STATE_NAME, 'wb') as f:
+        with open(STATE_FILE, 'wb') as f:
             pickle.dump(state, f, pickle.HIGHEST_PROTOCOL)
 
 

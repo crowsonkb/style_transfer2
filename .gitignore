@@ -3,5 +3,5 @@ venv
 *.caffemodel
 *.download
 config_non_git.ini
-
 trace.csv
+*.pkl
