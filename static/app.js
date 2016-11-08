@@ -63,13 +63,21 @@ function setWithDataURL(url, elem) {
     img.attr("src", url);
 }
 
+function enforceSize() {
+    var max_size = parseInt($("#resize-to").attr("max"));
+    var size = $("#resize-to").val();
+    if (size > max_size) { size = max_size; }
+    $("#resize-to").val(size);
+    return size
+}
+
 function uploadFile(files, elem, slot) {
     var reader = new FileReader();
     var data = null;
     reader.onload = function(e) {
         var data = e.target.result;
         setWithDataURL(data, elem);
-        var size = $("#resize-to").val();
+        var size = enforceSize();
         var msg = {size: size, slot: slot, data: data};
         $.post("/upload", msg);
     };

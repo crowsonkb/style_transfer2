@@ -44,7 +44,7 @@ asyncio.set_event_loop(loop)
 
 @aiohttp_jinja2.template('index.html')
 async def root(request):
-    return {}
+    return {'max_size': app.config.getint('max_size', 9999)}
 
 
 async def output_image(request):
@@ -175,6 +175,10 @@ def process_params(app, msg):
 
     try:
         params = yaml.safe_load(msg['params'])
+
+        max_size = app.config.getint('max_size', 9999)
+        if params['size'] > max_size:
+            raise ValueError('Size is over %d' % max_size)
 
         if params['size'] != max(app.input_arr.shape):
             new_size = utils.fit_into_square(app.input_arr.shape[:2], params['size'], True)
