@@ -25,6 +25,7 @@ from PIL import Image
 import yaml
 import zmq, zmq.asyncio
 
+from error_pages import ErrorPages
 from messages import *
 import utils
 
@@ -384,7 +385,7 @@ async def cleanup_tasks(app):
 
 
 def init():
-    app = web.Application()
+    app = web.Application(middlewares=[ErrorPages()])
     app.config = utils.read_config()
 
     aiohttp_jinja2.setup(app, loader=jinja2.FileSystemLoader(str(TEMPLATES_PATH)))

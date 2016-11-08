@@ -12,8 +12,11 @@ import time
 
 import aiohttp
 from aiohttp import web
+import aiohttp_jinja2
+import jinja2
 import zmq, zmq.asyncio
 
+from error_pages import ErrorPages
 from messages import *
 import utils
 
@@ -21,6 +24,8 @@ utils.setup_exceptions()
 
 MODULE_DIR = Path(__file__).parent.resolve()
 STATE_FILE = 'router_state.pkl'
+STATIC_PATH = MODULE_DIR / 'static'
+TEMPLATES_PATH = MODULE_DIR / 'templates'
 
 logger = logging.getLogger('router')
 
@@ -202,6 +207,8 @@ async def startup_tasks(app):
         for inst in state.addrs.values():
             inst.socket = ctx.socket(zmq.PUSH)
             inst.socket.connect(inst.addr)
+    except EOFError as err:
+        logger.warning('Unable to load state file: %s', err)
     except FileNotFoundError:
         pass
     app.expire_task = asyncio.Task(expire_state(app))
@@ -214,11 +221,16 @@ async def cleanup_tasks(app):
 
 
 def init():
-    app = web.Application()
+    app = web.Application(middlewares=[ErrorPages()])
     app.config = utils.read_config()
+
+    aiohttp_jinja2.setup(app, loader=jinja2.FileSystemLoader(str(TEMPLATES_PATH)))
+    app.router.add_route('GET', '/', proxy)
+    app.router.add_route('GET', '/output', proxy)
+    app.router.add_route('POST', '/upload', proxy)
     app.router.add_route('GET', '/websocket', proxy_ws)
-    app.router.add_route('GET', r'/{a:.*}', proxy)
-    app.router.add_route('POST', r'/{a:.*}', proxy)
+    app.router.add_static('/', STATIC_PATH)
+
     app.on_startup.append(startup_tasks)
     app.on_cleanup.append(cleanup_tasks)
     return app
