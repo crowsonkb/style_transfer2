@@ -12,6 +12,7 @@ import logging
 import json
 from pathlib import Path
 import subprocess
+import sys
 import time
 
 import aiohttp
@@ -235,6 +236,7 @@ def init_arrays(app):
     content = utils.resize_to_fit(app.content_image, app.params['size'])
     style = utils.resize_to_fit(app.style_image, app.style_size)
 
+    reset_state = False
     if app.input_arr is None:
         w, h = content.size
         app.input_arr = np.uint8(np.random.uniform(0, 255, (h, w, 3)))
@@ -244,7 +246,6 @@ def init_arrays(app):
         size = utils.fit_into_square(app.input_arr.shape[:2], app.params['size'])
         app.input_arr = utils.resample_hwc(app.input_arr, size)
         app.input_was_reset = False
-        reset_state = False
 
     msg = SetImages(None, app.input_arr, np.uint8(content), np.uint8(style), reset_state)
     app.sock_out.send_pyobj(msg)
@@ -325,7 +326,10 @@ async def monitor_worker(app):
         if app.worker_proc is None or app.worker_proc.poll() is not None:
             app.running = False
             app.worker_ready = False
-            app.worker_proc = subprocess.Popen([str(WORKER_PATH)])
+            cfg = []
+            if len(sys.argv) >= 2:
+                cfg = [sys.argv[1]]
+            app.worker_proc = subprocess.Popen([str(WORKER_PATH)] + cfg)
             send_websocket(app, dict(type='state', running=app.running))
             init_arrays(app)
         await asyncio.sleep(0.1)

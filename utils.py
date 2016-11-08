@@ -106,9 +106,10 @@ def line_profile(items):
 def read_config():
     """Returns a dict-like object consisting of key-value pairs from the configuration file."""
     cp = configparser.ConfigParser()
-    if cp.read(str(CONFIG_PATH_NON_GIT)):
-        return cp['DEFAULT']
     cp.read(str(CONFIG_PATH))
+    cp.read(str(CONFIG_PATH_NON_GIT))
+    if len(sys.argv) >= 2:
+        cp.read(sys.argv[1])
     return cp['DEFAULT']
 
 
