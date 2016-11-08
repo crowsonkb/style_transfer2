@@ -85,7 +85,7 @@ async def upload(request):
         send_websocket(request.app, dict(type='newSize', height=current_image.shape[0],
                                          width=current_image.shape[1]))
         request.app.params['size'] = max(current_image.shape[:2])
-        send_websocket(request.app, dict(type='newParams', params=get_params(app)))
+        send_websocket(request.app, dict(type='newParams', params=get_params(request.app)))
         thumbnail_msg = dict(type='thumbnails', content=request.app.content_image.thumbnail_url_)
     request.app.sock_out.send_pyobj(out_msg)
     if thumbnail_msg is not None:
