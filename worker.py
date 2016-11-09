@@ -356,9 +356,10 @@ class Worker:
                 if self.process_message(msg):
                     break
         except KeyboardInterrupt:
-            self.sock_out.send_pyobj(Shutdown())
+            pass
         finally:
-            self.transfer.write_trace('trace.csv')
+            self.sock_out.send_pyobj(Shutdown())
+            # self.transfer.write_trace('trace.csv')
 
     def process_message(self, msg):
         def is_image(obj):

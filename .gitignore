@@ -5,3 +5,4 @@ venv
 config_non_git.ini
 trace.csv
 *.pkl
+deploy
