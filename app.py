@@ -45,7 +45,8 @@ asyncio.set_event_loop(loop)
 
 @aiohttp_jinja2.template('index.html')
 async def root(request):
-    return {'max_size': request.app.config.getint('max_size', 9999)}
+    return {'max_size': request.app.config.getint('max_size', 9999),
+            'ga_tracking_code': request.app.config.get('ga_tracking_code', '')}
 
 
 async def output_image(request):
@@ -383,8 +384,10 @@ async def cleanup_tasks(app):
 
 
 def init(args):
-    app = web.Application(middlewares=[ErrorPages()])
-    app.config = utils.read_config(args)
+    config = utils.read_config(args)
+    template_vars = {'ga_tracking_code': config.get('ga_tracking_code', '')}
+    app = web.Application(middlewares=[ErrorPages(template_vars)])
+    app.config = config
     app.debug_level = app.config.getint('debug', 0)
     if args.debug:
         app.debug_level += args.debug

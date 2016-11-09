@@ -14,6 +14,10 @@ TEMPLATE = 'error.html'
 
 class ErrorPages:
     """aiohttp middleware to serve HTTP error pages as jinja2 templates."""
+    def __init__(self, template_vars=None):
+        self.template_vars = template_vars
+        if template_vars is None:
+            self.template_vars = {}
 
     async def __call__(self, app, handler):
         """Middleware factory method."""
@@ -29,6 +33,7 @@ class ErrorPages:
                 context = dict(status_code=response.status,
                                reason=response.reason,
                                message=MESSAGES.get(response.status, ''))
+                context.update(self.template_vars)
 
                 @aiohttp_jinja2.template(TEMPLATE, status=response.status)
                 async def template_fn(request):

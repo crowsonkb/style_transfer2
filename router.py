@@ -225,8 +225,10 @@ async def cleanup_tasks(app):
 
 
 def init(args):
-    app = web.Application(middlewares=[ErrorPages()])
-    app.config = utils.read_config(args)
+    config = utils.read_config(args)
+    template_vars = {'ga_tracking_code': config.get('ga_tracking_code', '')}
+    app = web.Application(middlewares=[ErrorPages(template_vars)])
+    app.config = config
     app.debug_level = app.config.getint('debug', 0)
     if args.debug:
         app.debug_level += args.debug
