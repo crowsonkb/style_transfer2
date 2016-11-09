@@ -88,6 +88,9 @@ async def proxy(request):
             else:
                 raise web.HTTPForbidden()
     except aiohttp.errors.ClientError:
+        logger.debug('Expiring session %s on %s', inst.session_id, inst.addr)
+        inst.socket.send_pyobj(Reset())
+        del request.app.sessions[session_id]
         raise web.HTTPInternalServerError()
 
     if set_session_id:
