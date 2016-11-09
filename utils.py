@@ -10,6 +10,7 @@ import inspect
 import logging
 import os
 from pathlib import Path
+import signal
 import sys
 import warnings
 
@@ -181,6 +182,12 @@ def setup_logging(debug=0):
     else:
         messages.Message.debug = True
     logging.captureWarnings(True)
+
+
+def setup_signals():
+    def handler(*args):
+        raise KeyboardInterrupt()
+    signal.signal(signal.SIGHUP, handler)
 
 
 def scales(size, min_size=1, factor=np.sqrt(2)):

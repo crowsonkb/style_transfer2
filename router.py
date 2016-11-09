@@ -21,6 +21,7 @@ from messages import *
 import utils
 
 utils.setup_exceptions()
+utils.setup_signals()
 
 MODULE_DIR = Path(__file__).parent.resolve()
 STATE_FILE = 'router_state.pkl'

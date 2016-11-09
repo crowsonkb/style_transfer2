@@ -30,6 +30,7 @@ from messages import *
 import utils
 
 utils.setup_exceptions()
+utils.setup_signals()
 
 MODULE_DIR = Path(__file__).parent.resolve()
 STATIC_PATH = MODULE_DIR / 'static'
