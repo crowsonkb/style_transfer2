@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block content %}
+    <h1>Server statistics</h1>
+    <p>{{ sessions }}/{{ instances }} instances in use.
+    <p>Load average: {{ "%.2f"|format(loadavg[0]) }}, {{ "%.2f"|format(loadavg[1]) }}, {{ "%.2f"|format(loadavg[2]) }}.
+    <p><small>Generated {{ timestamp }} UTC.</small>
+{% endblock %}

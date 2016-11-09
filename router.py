@@ -53,6 +53,17 @@ class RouterState:
         self.sessions = sessions
 
 
+@aiohttp_jinja2.template('stats.html')
+async def stats(request):
+    context = {
+        'instances': len(request.app.addrs),
+        'sessions': len(request.app.sessions),
+        'timestamp': time.asctime(time.gmtime()),
+        'loadavg': os.getloadavg(),
+        'ga_tracking_code': request.app.config.get('ga_tracking_code', '')}
+    return context
+
+
 async def proxy(request):
     if 'session_id' in request.cookies and request.cookies['session_id'] in request.app.sessions:
         session_id = request.cookies['session_id']
@@ -239,6 +250,7 @@ def init(args):
     app.router.add_route('GET', '/output', proxy)
     app.router.add_route('POST', '/upload', proxy)
     app.router.add_route('GET', '/websocket', proxy_ws)
+    app.router.add_route('GET', '/stats', stats)
     app.router.add_static('/', STATIC_PATH)
 
     app.on_startup.append(startup_tasks)
