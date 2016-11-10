@@ -223,7 +223,7 @@ async def startup_tasks(app):
         for inst in state.addrs.values():
             inst.socket = ctx.socket(zmq.PUSH)
             inst.socket.connect(inst.addr)
-    except EOFError as err:
+    except (EOFError, TypeError) as err:
         logger.warning('Unable to load state file: %s', err)
     except FileNotFoundError:
         pass
@@ -278,6 +278,8 @@ def main():
         logger.info('Shutting down router.')
         ctx.destroy(0)
         for inst in app.addrs.values():
+            inst.socket = None
+        for inst in app.sessions.values():
             inst.socket = None
         state = RouterState(app.addrs, app.sessions)
         with open(STATE_FILE, 'wb') as f:
