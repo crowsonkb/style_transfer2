@@ -47,7 +47,8 @@ asyncio.set_event_loop(loop)
 @aiohttp_jinja2.template('index.html')
 async def root(request):
     return {'max_size': request.app.config.getint('max_size', 9999),
-            'ga_tracking_code': request.app.config.get('ga_tracking_code', '')}
+            'ga_tracking_code': request.app.config.get('ga_tracking_code', ''),
+            'top': open(request.app.config.get('top', '')).read()}
 
 
 async def output_image(request):
