@@ -75,6 +75,7 @@ async def proxy(request):
             if instance.session_id is None:
                 inst = instance
                 logger.debug('New session: %s on %s', session_id, inst.addr)
+                inst.socket.send_pyobj(Reset())
                 inst.session_id = session_id
                 request.app.sessions[session_id] = inst
                 break
