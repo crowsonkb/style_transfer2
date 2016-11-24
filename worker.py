@@ -283,6 +283,7 @@ class StyleTransfer:
         tv_loss, tv_grad = utils.tv_norm(x / 255, self.params['tv_power'])
         loss += t(n_(), self.params['tv'] * tv_loss)
 
+        # Get the p-norm loss and gradient
         p_loss, p_grad = utils.p_norm(x / 255, self.params['p_power'])
         loss += t(n_(), self.params['p'] * p_loss)
 
